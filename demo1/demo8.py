@@ -24,8 +24,9 @@ from qgis.PyQt.QtGui import QColor
 import sys
 
 
-GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/output/projects/'
-ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon/'
+GEOJSON_PREFIX = '/lyndon/iProject/pypath/qgis-x/output/projects/'
+ICON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/icon/'
+RESULT_PREFIX = '/lyndon/iProject/pypath/qgis-x/output/'
 
 
 def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: list[tuple[float, float]], point_size: int = 5) -> QgsVectorLayer:
@@ -232,7 +233,7 @@ if __name__ == '__main__':
     project.addMapLayer(polygonLayer)
 
     # Save project
-    project.write("D:/iProject/pypath/qgis-x/output/projects/demo8.qgz")
+    project.write(RESULT_PREFIX + "demo8.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()
