@@ -21,7 +21,8 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsMarkerSymbol,
     QgsRasterMarkerSymbolLayer,
-    QgsVectorFileWriter
+    QgsVectorFileWriter,
+    QgsCoordinateTransformContext
 )
 
 from qgis.PyQt.QtCore import QVariant, QMetaType
@@ -61,12 +62,12 @@ if __name__ == '__main__':
     symbol.changeSymbolLayer(0, raster_layer)
 
     # Ensure the renderer is valid before setting the symbol
-    renderer = pointLayer.renderer()
-    if renderer is not None:
-        renderer.setSymbol(symbol)
-    else:
-        print("Failed to get the renderer for the layer!")
-        sys.exit(1)
+    # renderer = pointLayer.renderer()
+    # if renderer is not None:
+    #     renderer.setSymbol(symbol)
+    # else:
+    #     print("Failed to get the renderer for the layer!")
+    #     sys.exit(1)
 
     # 设置坐标转换
     crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -88,9 +89,20 @@ if __name__ == '__main__':
 
 
     # 持久化图层数据到 shapefile
-    output_path = "D:/iProject/pypath/qgis-x/output/projects/Transformed_Points.shp"
-    error = QgsVectorFileWriter.writeAsVectorFormat(pointLayer, output_path, "UTF-8", pointLayer.crs(),
-                                                    "ESRI Shapefile")
+    layer_output_path = "D:/iProject/pypath/qgis-x/output/projects/Transformed_Points.shp"
+    # error = QgsVectorFileWriter.writeAsVectorFormat(pointLayer, layer_output_path, "UTF-8", pointLayer.crs(),
+    #                                                 "ESRI Shapefile")
+
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "ESRI Shapefile"
+    # options.driverName = "GeoJSON"
+    options.fileEncoding = "UTF-8"
+
+    error = QgsVectorFileWriter.writeAsVectorFormatV3(pointLayer, layer_output_path, QgsCoordinateTransformContext(), options)
+    if error == QgsVectorFileWriter.NoError:
+        print("图层数据已成功保存到", layer_output_path)
+    else:
+        print("保存图层数据时出错：", error)
 
 
     if pointLayer.commitChanges():

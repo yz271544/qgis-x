@@ -54,15 +54,15 @@ if __name__ == '__main__':
     pointLayer.updateFields()
 
     # Set marker symbol to raster image type
-    icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
-    raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
-    raster_layer.setSize(10)
-    # symbol = QgsMarkerSymbol()
-    symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
-    symbol.changeSymbolLayer(0, raster_layer)
-    # pointLayer.renderer().setSymbol(symbol)  # 直接设置渲染器的符号
-    renderer = QgsSingleSymbolRenderer(symbol)
-    pointLayer.setRenderer(renderer)
+    # icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
+    # raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
+    # raster_layer.setSize(10)
+    # # symbol = QgsMarkerSymbol()
+    # symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
+    # symbol.changeSymbolLayer(0, raster_layer)
+    # # pointLayer.renderer().setSymbol(symbol)  # 直接设置渲染器的符号
+    # renderer = QgsSingleSymbolRenderer(symbol)
+    # pointLayer.setRenderer(renderer)
     # pointLayer.triggerRepaint()
 
 

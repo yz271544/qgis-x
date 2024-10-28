@@ -35,13 +35,10 @@ if __name__ == '__main__':
     if base_tile_layer.isValid():
         project.addMapLayer(base_tile_layer)
 
-    tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/%E5%81%A5%E5%BA%B7%E8%B0%B7%E6%AD%A3%E5%B0%84/{z}/{x}/{y}.png"
-    tile_layer = QgsRasterLayer(tile_url, "Main-Tile", "wms")
-    if tile_layer.isValid():
-        project.addMapLayer(tile_layer)
-
-    # Define GeoJSON file path
-    geojson_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.geojson'
+    main_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/%E5%81%A5%E5%BA%B7%E8%B0%B7%E6%AD%A3%E5%B0%84/{z}/{x}/{y}.png"
+    main_tile_layer = QgsRasterLayer(main_tile_url, "Main-Tile", "wms")
+    if main_tile_layer.isValid():
+        project.addMapLayer(main_tile_layer)
 
     # Create vector layer
     pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", "MinJing_Points", "memory")
@@ -53,18 +50,14 @@ if __name__ == '__main__':
     ])
     pointLayer.updateFields()
 
-    # Set marker symbol to raster image type
-    icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
-    raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
-    raster_layer.setSize(10)
-    # symbol = QgsMarkerSymbol()
-    symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
-    symbol.changeSymbolLayer(0, raster_layer)
-    # pointLayer.renderer().setSymbol(symbol)  # 直接设置渲染器的符号
-    renderer = QgsSingleSymbolRenderer(symbol)
-    pointLayer.setRenderer(renderer)
-    # pointLayer.triggerRepaint()
-
+    # # Set marker symbol to raster image type
+    # icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
+    # raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
+    # raster_layer.setSize(10)
+    # symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
+    # symbol.changeSymbolLayer(0, raster_layer)
+    # renderer = QgsSingleSymbolRenderer(symbol)
+    # pointLayer.setRenderer(renderer)
 
     # Set coordinate transform
     crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -84,23 +77,35 @@ if __name__ == '__main__':
         feature.setAttributes([f"minjing-Point{i + 1}", transformed_point.x(), transformed_point.y()])
         pointProvider.addFeature(feature)
 
+    # pointLayer.updateExtents()
+    # pointLayer.triggerRepaint()
+
     # Commit changes to the vector layer
     if pointLayer.commitChanges():
         print("数据已成功提交到图层")
     else:
         print("数据提交到图层失败：" + pointProvider.error().message())
 
-    # Save the vector layer to a GeoJSON file
+    # Save the vector layer to a shapefile
     options = QgsVectorFileWriter.SaveVectorOptions()
-    options.driverName = "GeoJSON"
+    options.driverName = "ESRI Shapefile"
     options.fileEncoding = "UTF-8"
-    QgsVectorFileWriter.writeAsVectorFormatV3(pointLayer, geojson_path, QgsCoordinateTransformContext(), options)
+    layer_output_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.shp'
+    QgsVectorFileWriter.writeAsVectorFormatV3(pointLayer, layer_output_path, QgsCoordinateTransformContext(), options)
 
-    # Load the GeoJSON file
-    pointLayer = QgsVectorLayer(geojson_path, "MinJing_Points", "ogr")
+    pointLayer = QgsVectorLayer(layer_output_path, "MinJing_Points", "ogr")
     if not pointLayer.isValid():
         print("Failed to load the layer!")
         sys.exit(1)
+
+    # Set marker symbol to raster image type
+    icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
+    raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
+    raster_layer.setSize(5)
+    symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
+    symbol.changeSymbolLayer(0, raster_layer)
+    renderer = QgsSingleSymbolRenderer(symbol)
+    pointLayer.setRenderer(renderer)
 
     # Add vector layer to project
     project.addMapLayer(pointLayer)
