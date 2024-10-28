@@ -2,6 +2,7 @@ from qgis.core import (
     QgsApplication,
     QgsProject,
     QgsField,
+    QgsFields,
     QgsRasterLayer,
     QgsPointXY,
     QgsMarkerSymbol,
@@ -73,9 +74,17 @@ if __name__ == '__main__':
               QgsPointXY(111.4766598, 40.7282033)]  #
 
     for i, point in enumerate(points):
-        feature = QgsFeature()
+        fields = QgsFields()
+        QgsField
+        fields.append(QgsField('name', QVariant.String))
+        fields.append(QgsField('x', QVariant.Int))
+        fields.append(QgsField('y', QVariant.Int))
+        feature = QgsFeature(fields)
+        feature.setAttribute('name', f"Point {i + 1}")
+        feature.setAttribute('x', point.x())
+        feature.setAttribute('y', point.y())
         feature.setGeometry(QgsGeometry.fromPointXY(point))
-        feature.setAttributes([f"Point {i + 1}"])
+        # feature.setAttributes([f"Point {i + 1}"])
         pointProvider.addFeature(feature)
 
     pointLayer.updateExtents()
