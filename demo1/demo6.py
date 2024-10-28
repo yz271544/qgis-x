@@ -1,4 +1,5 @@
 import os
+
 from qgis.core import (
     QgsApplication,
     QgsProject,
@@ -7,6 +8,7 @@ from qgis.core import (
     QgsPointXY,
     QgsVectorLayer,
     QgsFeature,
+    QgsSymbol,
     QgsGeometry,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -14,7 +16,8 @@ from qgis.core import (
     QgsRasterMarkerSymbolLayer,
     QgsVectorFileWriter,
     QgsWkbTypes,
-    QgsCoordinateTransformContext
+    QgsCoordinateTransformContext,
+    QgsSingleSymbolRenderer
 )
 from qgis.PyQt.QtCore import QVariant, QMetaType
 import sys
@@ -28,43 +31,45 @@ if __name__ == '__main__':
 
     # Load tile layers
     base_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/hhht/{z}/{x}/{y}.png"
-    base_tile_layer = QgsRasterLayer(base_tile_url, "Base_Tile-Server", "wms")
+    base_tile_layer = QgsRasterLayer(base_tile_url, "Base-Tile", "wms")
     if base_tile_layer.isValid():
         project.addMapLayer(base_tile_layer)
 
     tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/%E5%81%A5%E5%BA%B7%E8%B0%B7%E6%AD%A3%E5%B0%84/{z}/{x}/{y}.png"
-    tile_layer = QgsRasterLayer(tile_url, "Tile-Server", "wms")
+    tile_layer = QgsRasterLayer(tile_url, "Main-Tile", "wms")
     if tile_layer.isValid():
         project.addMapLayer(tile_layer)
 
-    # Define shapefile path
-    shapefile_path = 'D:/iProject/pypath/qgis-x/output/projects/Transformed_Points.shp'
+    # Define GeoJSON file path
+    geojson_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.geojson'
 
     # Create vector layer
-    pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", "Transformed_Points", "memory")
+    pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", "MinJing_Points", "memory")
     pointProvider = pointLayer.dataProvider()
-    pointProvider.addAttributes([QgsField("name", QVariant.String), QgsField("x", QVariant.Double), QgsField("y", QVariant.Double)])
+    pointProvider.addAttributes([
+        QgsField("name", QMetaType.Type(QVariant.String), len=254),  # Ensure field name length does not exceed 254
+        QgsField("x", QMetaType.Type(QVariant.Double)),
+        QgsField("y", QMetaType.Type(QVariant.Double))
+    ])
     pointLayer.updateFields()
 
     # Set marker symbol to raster image type
-    symbol = QgsMarkerSymbol()
     icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
     raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
     raster_layer.setSize(10)
+    # symbol = QgsMarkerSymbol()
+    symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
     symbol.changeSymbolLayer(0, raster_layer)
+    # pointLayer.renderer().setSymbol(symbol)  # 直接设置渲染器的符号
+    renderer = QgsSingleSymbolRenderer(symbol)
+    pointLayer.setRenderer(renderer)
+    # pointLayer.triggerRepaint()
 
-    # Ensure the renderer is valid before setting the symbol
-    renderer = pointLayer.renderer()
-    if renderer is not None:
-        renderer.setSymbol(symbol)
-    else:
-        print("Failed to get the renderer for the layer!")
-        sys.exit(1)
 
     # Set coordinate transform
     crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
     crs_3857 = QgsCoordinateReferenceSystem("EPSG:3857")
-    transformer = QgsCoordinateTransform(crs_4326, crs_3857, QgsProject.instance())
+    transformer = QgsCoordinateTransform(crs_4326, crs_3857, project)
 
     # Start editing the vector layer
     pointLayer.startEditing()
@@ -75,8 +80,8 @@ if __name__ == '__main__':
         transformed_point = transformer.transform(point)
         feature = QgsFeature(pointLayer.fields())
         feature.setGeometry(QgsGeometry.fromPointXY(transformed_point))
-        print(f"mingjing-Point{i + 1}", transformed_point.x(), transformed_point.y())
-        feature.setAttributes([f"mingjing-Point{i + 1}", transformed_point.x(), transformed_point.y()])
+        print(f"minjing-Point{i + 1}", transformed_point.x(), transformed_point.y())
+        feature.setAttributes([f"minjing-Point{i + 1}", transformed_point.x(), transformed_point.y()])
         pointProvider.addFeature(feature)
 
     # Commit changes to the vector layer
@@ -85,17 +90,27 @@ if __name__ == '__main__':
     else:
         print("数据提交到图层失败：" + pointProvider.error().message())
 
-    # Save the vector layer to a shapefile
+    # Save the vector layer to a GeoJSON file
     options = QgsVectorFileWriter.SaveVectorOptions()
-    options.driverName = "ESRI Shapefile"
+    options.driverName = "GeoJSON"
     options.fileEncoding = "UTF-8"
-    QgsVectorFileWriter.writeAsVectorFormatV2(pointLayer, shapefile_path, QgsCoordinateTransformContext(), options)
+    QgsVectorFileWriter.writeAsVectorFormatV3(pointLayer, geojson_path, QgsCoordinateTransformContext(), options)
 
-    # Load the shapefile
-    pointLayer = QgsVectorLayer(shapefile_path, "Transformed_Points", "ogr")
+    # Load the GeoJSON file
+    pointLayer = QgsVectorLayer(geojson_path, "MinJing_Points", "ogr")
     if not pointLayer.isValid():
         print("Failed to load the layer!")
         sys.exit(1)
+
+    icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
+    raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
+    raster_layer.setSize(5)
+    # symbol = QgsMarkerSymbol()
+    symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
+    symbol.changeSymbolLayer(0, raster_layer)
+    # pointLayer.renderer().setSymbol(symbol)  # 直接设置渲染器的符号
+    renderer = QgsSingleSymbolRenderer(symbol)
+    pointLayer.setRenderer(renderer)
 
     # Add vector layer to project
     project.addMapLayer(pointLayer)
