@@ -23,9 +23,10 @@ from qgis.core import (
     QgsCategorizedSymbolRenderer,
     QgsPrintLayout,
     QgsLayoutItemMap,
-    QgsLayoutItemLegend
+    QgsLayoutItemLegend,
+    QgsRectangle
 )
-from qgis.PyQt.QtCore import QVariant, QMetaType
+from qgis.PyQt.QtCore import QVariant, QMetaType, QRectF
 from qgis.PyQt.QtGui import QColor
 from typing import Optional
 import sys
@@ -388,8 +389,39 @@ if __name__ == '__main__':
                                      ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
     project.addMapLayer(cir1Layer)
 
+
+    # 创建打印布局
+    layout = QgsPrintLayout(project)
+    layout.initializeDefaults()
+
+    # 创建地图项并设置范围为所有图层的范围
+    map_item = QgsLayoutItemMap(layout)
+    extent = QgsRectangle()
+    for layer in project.mapLayers().values():
+        extent.combineExtentWith(layer.extent())
+    map_item.setExtent(extent)
+    layout.addLayoutItem(map_item)
+
+    # 创建图例项
+    legend = QgsLayoutItemLegend(layout)
+    legend.setTitle("Legend")
+    legend.setAutoUpdateModel(True)
+    layout.addLayoutItem(legend)
+
+    # 设置地图项位置和大小（可选）
+    map_item.attemptSetSceneRect(QRectF(0, 0, 200, 200))
+    map_item.setPos(0, 0)
+
+    # 设置图例位置和大小（可选）
+    legend.attemptSetSceneRect(QRectF(210, 0, 100, 200))
+    legend.setPos(210, 0)
+
+    # 保存布局为QMD文件（可选）
+    qmd_file_path = 'D:/iProject/pypath/qgis-x/output/projects/demo10_with_legend.qmd'
+    project.write(qmd_file_path)
+
     # Save project
-    project.write("D:/iProject/pypath/qgis-x/output/projects/demo8.qgz")
+    project.write("D:/iProject/pypath/qgis-x/output/projects/demo10.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()

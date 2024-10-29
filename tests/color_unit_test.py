@@ -27,3 +27,5 @@ class ColorUnitTest(unittest.TestCase):
         print("color: ", c2, "capacity: ", cap2)
         c3, cap3 = ColorTransformUtil.str_rgba_to_hex("rgba(47,153,243,0.4))")
         print("color: ", c3, "capacity: ", cap3)
+        c4, cap4 = ColorTransformUtil.str_rgba_to_hex("rgba(255,255,255,1)")
+        print("color: ", c4, "capacity: ", cap4)
