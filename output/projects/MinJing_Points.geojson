@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "MinJing_Points",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3857" } },
+"features": [
+{ "type": "Feature", "properties": { "name": "minjing-Point1", "x": 12409621.00619985, "y": 4972452.9817378707 }, "geometry": { "type": "Point", "coordinates": [ 12409621.006199849769473, 4972452.981737870723009 ] } },
+{ "type": "Feature", "properties": { "name": "minjing-Point2", "x": 12409525.004270989, "y": 4972333.9955157321 }, "geometry": { "type": "Point", "coordinates": [ 12409525.004270989447832, 4972333.995515732094646 ] } }
+]
+}
