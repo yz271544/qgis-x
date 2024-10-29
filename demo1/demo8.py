@@ -258,7 +258,7 @@ def add_circle(layer_name: str, center_point: tuple[float, float], radius: float
 
 def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], radii: tuple[float, float, float],
                          colors: tuple[str, str, str], capacities: tuple[float, float, float],
-                         num_segments: int = 36) -> QgsVectorLayer:
+                         num_segments: int = 36) -> list[QgsVectorLayer]:
     """
     增加图层：三个同心圆
     :param layer_name: 图层名称
@@ -267,18 +267,19 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     :param colors: 三个圆的颜色
     :param capacities: 三个圆的透明度
     :param num_segments: 用于近似圆形的线段数量，数值越大越接近圆形
-    :return:
+    :return: 包含三个圆的矢量图层列表
     """
-    # 创建一个空的矢量图层
-    circleLayer = QgsVectorLayer("Polygon?crs=EPSG:3857", layer_name, "memory")
-    circleProvider = circleLayer.dataProvider()
+    circle_layers = []
     crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
     crs_3857 = QgsCoordinateReferenceSystem("EPSG:3857")
     transformer = QgsCoordinateTransform(crs_4326, crs_3857, project)
     center_transformed = transformer.transform(QgsPointXY(*center_point))
 
-    # 分别创建三个同心圆并添加到图层
     for radius, color, capacity in zip(radii, colors, capacities):
+        # 创建一个空的矢量图层
+        circleLayer = QgsVectorLayer("Polygon?crs=EPSG:3857", layer_name + "_" + str(radius), "memory")
+        circleProvider = circleLayer.dataProvider()
+
         points = []
         for i in range(num_segments):
             angle = 2 * math.pi * i / num_segments
@@ -293,31 +294,31 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
         feature.setGeometry(circle_geometry)
         circleProvider.addFeature(feature)
 
-    if circleLayer.commitChanges():
-        print("数据已成功提交到图层")
-    else:
-        print("数据提交到图层失败：" + circleLayer.dataProvider().error().message())
+        if circleLayer.commitChanges():
+            print("数据已成功提交到图层")
+        else:
+            print("数据提交到图层失败：" + circleLayer.dataProvider().error().message())
 
-    options = QgsVectorFileWriter.SaveVectorOptions()
-    options.driverName = "GeoJSON"
-    options.fileEncoding = "UTF - 8"
-    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
-    QgsVectorFileWriter.writeAsVectorFormatV3(circleLayer, geojson_path, QgsCoordinateTransformContext(), options)
-    circleLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
-    if not circleLayer.isValid():
-        print("Failed to load the circleLayer!")
-        sys.exit(1)
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = "GeoJSON"
+        options.fileEncoding = "UTF - 8"
+        geojson_path = GEOJSON_PREFIX + f'{layer_name}_{radius}.geojson'
+        QgsVectorFileWriter.writeAsVectorFormatV3(circleLayer, geojson_path, QgsCoordinateTransformContext(), options)
+        circleLayer = QgsVectorLayer(geojson_path, layer_name + "_" + str(radius), "ogr")
+        if not circleLayer.isValid():
+            print("Failed to load the circleLayer!")
+            sys.exit(1)
 
-    # 为每个圆分别设置样式
-    renderer = circleLayer.renderer()
-    if isinstance(renderer, QgsSingleSymbolRenderer):
-        symbol = renderer.symbol()
-        for i, (color, capacity) in enumerate(zip(colors, capacities)):
-            new_symbol_layer = QgsFillSymbol.createSimple({'color': color, 'opacity': str(capacity)})
-            symbol.changeSymbolLayer(i, new_symbol_layer.symbolLayer(0))
+        # 设置样式
+        symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
+        symbol.setColor(QColor(color))
+        symbol.setOpacity(capacity)
+        renderer = QgsSingleSymbolRenderer(symbol)
+        circleLayer.setRenderer(renderer)
 
-    circleLayer.setRenderer(renderer)
-    return circleLayer
+        circle_layers.append(circleLayer)
+
+    return circle_layers
 
 
 if __name__ == '__main__':
@@ -358,12 +359,14 @@ if __name__ == '__main__':
     # cir1Layer = add_circle("cir1", (111.477486, 40.724372), 41, "#2f99f3", 0.6,72)
     # project.addMapLayer(cir1Layer)
 
-    cir_key_1_r1 = int(41 * 0.4)
-    cir_key_1_r2 = int(41 * 0.3)
-    cir_key_1_r3 = 41 - cir_key_1_r1 - cir_key_1_r2
-    cir1Layer = add_circle_key_areas("cir_key_1", (111.477486, 40.724372), (cir_key_1_r1, cir_key_1_r2, cir_key_1_r3),
-                                     ("#2f99f3", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
-    project.addMapLayer(cir1Layer)
+    # cir_key_1_r1 = 41
+    # cir_key_1_r2 = int(41 * (30 + 40) / 100)
+    # cir_key_1_r3 = int(41 * 30 / 100)
+    # print("cir_key_1_r1: ", cir_key_1_r1, "cir_key_1_r2: ", cir_key_1_r2, "cir_key_1_r3: ", cir_key_1_r3)
+    # cir1LayerList = add_circle_key_areas("cir_key_1", (111.477486, 40.724372), (cir_key_1_r1, cir_key_1_r2, cir_key_1_r3),
+    #                                  ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
+    # for cirLayerElement in cir1LayerList:
+    #     project.addMapLayer(cirLayerElement)
 
 
     # Save project
