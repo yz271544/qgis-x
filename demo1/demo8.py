@@ -13,6 +13,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsMarkerSymbol,
+    QgsFillSymbol,
     QgsRasterMarkerSymbolLayer,
     QgsVectorFileWriter,
     QgsWkbTypes,
@@ -22,6 +23,8 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant, QMetaType
 from qgis.PyQt.QtGui import QColor
 import sys
+import math
+
 
 GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/output/projects/'
 ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon/'
@@ -147,7 +150,7 @@ def add_line(layer_name: str, lines: list[list[tuple[float, float]]], color: str
     return lineLayer
 
 
-def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]], color: str) -> QgsVectorLayer:
+def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]], color: str, capacity: float=0.5) -> QgsVectorLayer:
     """
     增加图层：相同颜色的多边形
     :param layer_name:
@@ -193,19 +196,20 @@ def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]]
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
     # symbol.setColor("#e77148")
     symbol.setColor(QColor(color))
-    symbol.setOpacity(0.5)
+    symbol.setOpacity(capacity)
     renderer = QgsSingleSymbolRenderer(symbol)
     polygonLayer.setRenderer(renderer)
 
     return polygonLayer
 
 
-def add_circle(layer_name: str, center_point: tuple[float, float], radius: float) -> QgsVectorLayer:
+def add_circle(layer_name: str, center_point: tuple[float, float], radius: float, color: str, capacity: float=0.5, num_segments: int = 36) -> QgsVectorLayer:
     """
     增加图层：圆形
     :param layer_name: 图层名称
     :param center_point: 圆心坐标
     :param radius: 半径
+    :param num_segments: 用于近似圆形的线段数量，数值越大越接近圆形
     :return:
     """
     circleLayer = QgsVectorLayer("Polygon?crs=EPSG:3857", layer_name, "memory")
@@ -214,29 +218,26 @@ def add_circle(layer_name: str, center_point: tuple[float, float], radius: float
     crs_3857 = QgsCoordinateReferenceSystem("EPSG:3857")
     transformer = QgsCoordinateTransform(crs_4326, crs_3857, project)
     center_transformed = transformer.transform(QgsPointXY(*center_point))
-    circle_geometry = QgsGeometry.fromWkt(
-        f"POLYGON(({center_transformed.x() - radius} {center_transformed.y() - radius}, "
-        f"{center_transformed.x() + radius} {center_transformed.y() - radius}, "
-        f"{center_transformed.x() + radius} {center_transformed.y() + radius}, "
-        f"{center_transformed.x() - radius} {center_transformed.y() + radius}, "
-        f"{center_transformed.x() - radius} {center_transformed.y() - radius}))")
 
+    points = []
+    for i in range(num_segments):
+        angle = 2 * math.pi * i / num_segments
+        x = center_transformed.x() + radius * math.cos(angle)
+        y = center_transformed.y() + radius * math.sin(angle)
+        points.append(QgsPointXY(x, y))
+    points.append(points[0])  # 闭合多边形
+
+    circle_geometry = QgsGeometry.fromPolygonXY([points])
     circleLayer.startEditing()
-    if circleLayer.isEditable():
-        print("圆形图层处于编辑模式，可以提交更改")
-    else:
-        print("圆形图层不在编辑模式，无法提交更改")
     feature = QgsFeature()
     feature.setGeometry(circle_geometry)
-    print("添加圆形特征前，圆形图层中的特征数量：", circleLayer.featureCount())
     circleProvider.addFeature(feature)
-    # 在添加特征之后
-    print("添加圆形特征后，圆形图层中的特征数量：", circleLayer.featureCount())
+
     if circleLayer.commitChanges():
         print("数据已成功提交到图层")
     else:
         print("数据提交到图层失败：" + circleProvider.error().message())
-        print("error:" + circleLayer.dataProvider().error().message())
+
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = "GeoJSON"
     options.fileEncoding = "UTF - 8"
@@ -246,10 +247,75 @@ def add_circle(layer_name: str, center_point: tuple[float, float], radius: float
     if not circleLayer.isValid():
         print("Failed to load the circleLayer!")
         sys.exit(1)
+
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
-    symbol.setColor(QColor("#FF0000"))
-    symbol.setOpacity(0.5)
+    symbol.setColor(QColor(color))
+    symbol.setOpacity(capacity)
     renderer = QgsSingleSymbolRenderer(symbol)
+    circleLayer.setRenderer(renderer)
+    return circleLayer
+
+
+def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], radii: tuple[float, float, float],
+                         colors: tuple[str, str, str], capacities: tuple[float, float, float],
+                         num_segments: int = 36) -> QgsVectorLayer:
+    """
+    增加图层：三个同心圆
+    :param layer_name: 图层名称
+    :param center_point: 圆心坐标
+    :param radii: 三个圆的半径
+    :param colors: 三个圆的颜色
+    :param capacities: 三个圆的透明度
+    :param num_segments: 用于近似圆形的线段数量，数值越大越接近圆形
+    :return:
+    """
+    # 创建一个空的矢量图层
+    circleLayer = QgsVectorLayer("Polygon?crs=EPSG:3857", layer_name, "memory")
+    circleProvider = circleLayer.dataProvider()
+    crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
+    crs_3857 = QgsCoordinateReferenceSystem("EPSG:3857")
+    transformer = QgsCoordinateTransform(crs_4326, crs_3857, project)
+    center_transformed = transformer.transform(QgsPointXY(*center_point))
+
+    # 分别创建三个同心圆并添加到图层
+    for radius, color, capacity in zip(radii, colors, capacities):
+        points = []
+        for i in range(num_segments):
+            angle = 2 * math.pi * i / num_segments
+            x = center_transformed.x() + radius * math.cos(angle)
+            y = center_transformed.y() + radius * math.sin(angle)
+            points.append(QgsPointXY(x, y))
+        points.append(points[0])  # 闭合多边形
+
+        circle_geometry = QgsGeometry.fromPolygonXY([points])
+        circleLayer.startEditing()
+        feature = QgsFeature()
+        feature.setGeometry(circle_geometry)
+        circleProvider.addFeature(feature)
+
+    if circleLayer.commitChanges():
+        print("数据已成功提交到图层")
+    else:
+        print("数据提交到图层失败：" + circleLayer.dataProvider().error().message())
+
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GeoJSON"
+    options.fileEncoding = "UTF - 8"
+    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
+    QgsVectorFileWriter.writeAsVectorFormatV3(circleLayer, geojson_path, QgsCoordinateTransformContext(), options)
+    circleLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
+    if not circleLayer.isValid():
+        print("Failed to load the circleLayer!")
+        sys.exit(1)
+
+    # 为每个圆分别设置样式
+    renderer = circleLayer.renderer()
+    if isinstance(renderer, QgsSingleSymbolRenderer):
+        symbol = renderer.symbol()
+        for i, (color, capacity) in enumerate(zip(colors, capacities)):
+            new_symbol_layer = QgsFillSymbol.createSimple({'color': color, 'opacity': str(capacity)})
+            symbol.changeSymbolLayer(i, new_symbol_layer.symbolLayer(0))
+
     circleLayer.setRenderer(renderer)
     return circleLayer
 
@@ -289,8 +355,16 @@ if __name__ == '__main__':
                                                (111.4855264, 40.7272782), (111.4839918, 40.7258937)]]], "#e77148")
     project.addMapLayer(polygonLayer)
 
-    cir1Layer = add_circle("cir1", (111.477486, 40.724372), 41)
+    # cir1Layer = add_circle("cir1", (111.477486, 40.724372), 41, "#2f99f3", 0.6,72)
+    # project.addMapLayer(cir1Layer)
+
+    cir_key_1_r1 = int(41 * 0.4)
+    cir_key_1_r2 = int(41 * 0.3)
+    cir_key_1_r3 = 41 - cir_key_1_r1 - cir_key_1_r2
+    cir1Layer = add_circle_key_areas("cir_key_1", (111.477486, 40.724372), (cir_key_1_r1, cir_key_1_r2, cir_key_1_r3),
+                                     ("#2f99f3", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
     project.addMapLayer(cir1Layer)
+
 
     # Save project
     project.write("D:/iProject/pypath/qgis-x/output/projects/demo8.qgz")
