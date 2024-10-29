@@ -1,5 +1,4 @@
 import os
-
 from qgis.gui import QgsMapCanvas
 from qgis.core import (
     Qgis,
@@ -360,12 +359,80 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     circleLayer.setRenderer(renderer)
     return circleLayer
 
+
+def add_layout(project) -> QgsPrintLayout:
+    layout = QgsPrintLayout(project)
+    layout.setName("位置图")
+    layout.initializeDefaults()
+    # 设置纸张类型和大小（以A4为例）
+    page = layout.pageCollection().page(0)
+    page.setPageSize("A4", 1) # 1表示横向，0表示纵向
+
+    # 设置布局的边距 (单位：毫米) 左上右下
+    content = QgsLayoutPageCollection(layout)
+    content.resizeToContents(QgsMargins(22, 30, 18, 22), Qgis.LayoutUnit.Millimeters)
+
+    map_item = QgsLayoutItemMap(layout)
+    extent = QgsRectangle()
+    projectLayers = project.mapLayers().values()
+    for layer in projectLayers:
+        if layer.name() not in ["Main-Tile", "Base-Tile"]:
+            extent.combineExtentWith(layer.extent())
+
+    map_item.setExtent(extent)
+    # map_item.setAtlasMargin()
+    # map_item.setLabelMargin()
+    map_item.attemptSetSceneRect(QtCore.QRectF(5, 22, 240, 160))  # 设置地图项在布局中的大小
+    # 设置地图项在布局中的位置
+    map_item.setPos(QtCore.QPointF(0, 0))
+    layout.addLayoutItem(map_item)
+
+    # 添加标题
+    title = QgsLayoutItemLabel(layout)
+    title.setText("My Map Title")
+
+    # Use QgsTextFormat to set the font
+    text_format = QgsTextFormat()
+    text_format.setFont(QtGui.QFont("Arial", 30))
+    title.setTextFormat(text_format)
+
+    title.attemptSetSceneRect(QtCore.QRectF(100, 100, 100, 20))
+    title.setPos(QtCore.QPointF(50, 50))
+    layout.addLayoutItem(title)
+
+    # 添加图例
+    legend = QgsLayoutItemLegend(layout)
+    legend.setTitle("Legend")
+    legend.setAutoUpdateModel(True)
+    legend.attemptSetSceneRect(QtCore.QRectF(120, 10, 80, 80))
+    legend.setPos(QtCore.QPointF(120, 10))
+    layout.addLayoutItem(legend)
+
+    # 或者保存为.qpt模板文件
+    # doc = QtXml.QDomDocument()
+    # layout.saveAsTemplate(doc)
+    # with open('D:/iProject/pypath/qgis-x/output/projects/demo_layout.qpt', 'w') as f:
+    #     f.write(doc.toString())
+
+    return layout
+
+
 if __name__ == '__main__':
     qgis = QgsApplication([], False)
     qgis.initQgis()
 
     # Create project instance
     project = QgsProject.instance()
+
+    # Create map settings and set the extent
+    map_settings = QgsMapSettings()
+    map_extent = QgsRectangle(111.47, 40.72, 111.49, 40.73)
+    map_settings.setExtent(map_extent)
+
+    # qpt_file_path = f"{LAYOUT_DIR}/jingwei1.qpt"
+    # layout = load_layout_from_qpt(project, qpt_file_path)
+    # project.layoutManager().addLayout(layout)
+
 
     # Load tile layers
     base_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/hhht/{z}/{x}/{y}.png"
@@ -402,6 +469,9 @@ if __name__ == '__main__':
                                      ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
     project.addMapLayer(cir1Layer)
 
+
+    project.layoutManager().addLayout(add_layout(project))
+
     # 如下是将添加到地图的图层，设置为地图视口范围
     # Create map settings and set the extent
     map_settings = QgsMapSettings()
@@ -423,7 +493,7 @@ if __name__ == '__main__':
     canvas.setExtent(extent)
 
     # Save project
-    project.write("D:/iProject/pypath/qgis-x/output/projects/demo10.qgz")
+    project.write("D:/iProject/pypath/qgis-x/output/projects/demo11.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()
