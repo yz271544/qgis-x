@@ -90,7 +90,7 @@ if __name__ == '__main__':
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = "ESRI Shapefile"
     options.fileEncoding = "UTF-8"
-    layer_output_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.shp'
+    layer_output_path = '/common/output/projects/MinJing_Points.shp'
     QgsVectorFileWriter.writeAsVectorFormatV3(pointLayer, layer_output_path, QgsCoordinateTransformContext(), options)
 
     pointLayer = QgsVectorLayer(layer_output_path, "MinJing_Points", "ogr")

@@ -1,4 +1,5 @@
 import os
+
 from qgis.gui import QgsMapCanvas
 from qgis.core import (
     Qgis,
@@ -33,6 +34,8 @@ from qgis.core import (
     QgsTextFormat,
     QgsMapSettings,
     QgsLayoutAligner,
+    QgsLayoutMeasurement,
+    QgsUnitTypes
 )
 from qgis.core import Qgis
 # from qgis.PyQt.QtCore import QVariant, QMetaType, QRectF
@@ -369,9 +372,10 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     return circleLayer
 
 
-def add_print_layout(project) -> QgsPrintLayout:
+def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout = QgsPrintLayout(project)
     layout.setName("位置图")
+    layout.setUnits(QgsUnitTypes.LayoutMillimeters)
     layout.initializeDefaults()
 
     # 设置纸张类型和大小（以A4为例）
@@ -390,42 +394,38 @@ def add_print_layout(project) -> QgsPrintLayout:
     print(f"Left: {left_margin}, Top: {top_margin}, Right: {right_margin}, Bottom: {bottom_margin}")
 
     map_item = QgsLayoutItemMap(layout)
+    map_item.setCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
+    print("Canvas CRS:", canvas.mapSettings().destinationCrs().authid())
+    print("Map Item CRS:", map_item.crs().authid())
+
     map_item.setKeepLayerSet(False)
-    map_item.setFrameEnabled(False)
-    extent = QgsRectangle()
-    projectLayers = project.mapLayers().values()
-    for layer in projectLayers:
-        # extent.combineExtentWith(layer.extent())
-        if layer.name() not in ["Main-Tile", "Base-Tile"]:
-            print(layer.name(), layer.extent())
-            extent.combineExtentWith(layer.extent())
-            # layer_extent = layer.extent()
-            # features = layer.getFeatures()
-            # if not layer_extent.isEmpty():
-            #     for feature in features:
-            #         geom = feature.geometry()
-            #         if not QgsGeometry.isNull(geom):
-            #             print("name:", layer.name(), " extent:", layer.extent(), "geomBox:", geom.boundingBox())
-            #             extent.combineExtentWith(geom.boundingBox())
-                # extent.combineExtentWith(layer_extent)
-    print(f"map:{extent}")
-    map_item.setExtent(extent)
-    print("222::extent:", map_item.extent())
-    print(f"222:{extent}")
+    map_item.setFrameEnabled(True)
+    map_item.setFrameStrokeWidth(QgsLayoutMeasurement(1, QgsUnitTypes.LayoutMillimeters))
+
+    # 获取主画布范围并设置到地图项
+    main_canvas_extent = canvas.extent()
+    map_item.setExtent(main_canvas_extent)
+    map_item.refresh()
+    print(f"map:{main_canvas_extent}")
+    # map_item.setExtent(extent)
+    print("111::extent:", map_item.extent())
     width = PaperSpecification.A4.value[1] - left_margin - right_margin
     height = PaperSpecification.A4.value[0] - top_margin - bottom_margin
-    print("333::extent:", map_item.extent())
-    print(f"333:{extent}")
+    print("222::extent:", map_item.extent())
+    print(f"222:{main_canvas_extent}")
     print(f"x: {left_margin}, y: {top_margin}, width: {width}, height: {height}")
     map_item.attemptSetSceneRect(QtCore.QRectF(left_margin, top_margin, width, height), True)  # 设置地图项在布局中的大小
+    map_item.updateBoundingRect()
+    map_item.refreshItemSize()
+    map_item.fixedSize()
+    map_item.refresh()
     print("map_item::extent:", map_item.extent())
-    map_item.updateBoundingBox()
-    print("444::extent:", map_item.extent())
-    print(f"444:{extent}")
-
     print("mapPositionWithUnit:", map_item.positionWithUnits())
     print("mapSizeWithUnits:", map_item.sizeWithUnits())
 
+
+
+    # map_item.atlasScalingMode()
     # map_item.setPos(QtCore.QPointF(0, 0))
     layout.addLayoutItem(map_item)
 
@@ -466,6 +466,8 @@ def add_print_layout(project) -> QgsPrintLayout:
     # legend.setPos(QtCore.QPointF(120, 10))
     layout.addLayoutItem(legend)
 
+    layout.refresh()
+
     # 保存为.qpt文件
     qpt_file_path = f"{GEOJSON_PREFIX}/jingwei3.qpt"
     context = QgsReadWriteContext()
@@ -482,13 +484,15 @@ def add_print_layout(project) -> QgsPrintLayout:
 
 def load_qpt_template(project, qpt_file_path):
     doc = QtXml.QDomDocument()
-    with open(qpt_file_path, 'r') as file:
-        doc.setContent(file.read())
-    layout = QgsPrintLayout(project)
-    layout.loadFromTemplate(doc, QgsReadWriteContext())
-    layout_name = "Loaded Layout"  # 你可以自定义布局名称
-    project.layoutManager().addLayout(layout)
-    return layout
+    if os.path.exists(qpt_file_path):
+        with open(qpt_file_path, 'r') as file:
+            doc.setContent(file.read())
+        layout = QgsPrintLayout(project)
+        layout.loadFromTemplate(doc, QgsReadWriteContext())
+        layout_name = "Loaded-Layout"
+        # 你可以自定义布局名称
+        layout.setName(layout_name)
+        project.layoutManager().addLayout(layout)
 
 
 if __name__ == '__main__':
@@ -503,10 +507,8 @@ if __name__ == '__main__':
     map_extent = QgsRectangle(111.47, 40.72, 111.49, 40.73)
     map_settings.setExtent(map_extent)
 
-    qpt_file_path = f"{GEOJSON_PREFIX}/jingwei3.qpt"
-    layout = load_qpt_template(project, qpt_file_path)
-    project.layoutManager().addLayout(layout)
-
+    # qpt_file_path = f"{GEOJSON_PREFIX}/jingwei1.qpt"
+    # load_qpt_template(project, qpt_file_path)
 
     # Load tile layers
     base_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/hhht/{z}/{x}/{y}.png"
@@ -543,9 +545,6 @@ if __name__ == '__main__':
                                      ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
     project.addMapLayer(cir1Layer)
 
-
-    # project.layoutManager().addLayout(add_print_layout(project))
-
     # 如下是将添加到地图的图层，设置为地图视口范围
     # Create map settings and set the extent
     map_settings = QgsMapSettings()
@@ -564,10 +563,13 @@ if __name__ == '__main__':
 
     # Create a map canvas and set its extent
     canvas = QgsMapCanvas()
+    canvas.setDestinationCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
     canvas.setExtent(extent)
 
+    project.layoutManager().addLayout(add_print_layout(project, canvas))
+
     # Save project
-    project.write(f"{GEOJSON_PREFIX}/demo11.qgz")
+    project.write(f"{GEOJSON_PREFIX}/demo12.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()
