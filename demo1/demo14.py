@@ -1,3 +1,4 @@
+import base64
 import os
 
 from qgis.gui import QgsMapCanvas
@@ -64,11 +65,12 @@ from utils.unit_util import UnitUtil
 
 LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
 GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
-ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
+# ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
+ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
 
 
 def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: list[tuple[float, float]],
-               point_size: int = 5) -> QgsVectorLayer:
+               point_size: int = 5, icon_base64: str = "") -> QgsVectorLayer:
     """
     增加图层：相同大小和图标的点
     :param layer_name:
@@ -76,6 +78,7 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
     :param point_name_prefix:
     :param points:
     :param point_size:
+    :param icon_base64: Base64 encoded image string
     :return:
     """
     # global pointLayer, options
@@ -123,6 +126,10 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
         sys.exit(1)
     # icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
     icon_path = f'{ICON_PREFIX}/{icon_name}.png'
+    if icon_base64 != "":
+        with open(icon_path, 'wb') as icon_file:
+            icon_file.write(base64.b64decode(icon_base64))
+
     raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
     raster_layer.setSize(point_size)
     # symbol = QgsMarkerSymbol()
@@ -152,7 +159,7 @@ def add_line(layer_name: str, lines: list[list[tuple[float, float]]], color: str
 
     for line in lines:
         transformed_line = [transformer.transform(QgsPointXY(*point)) for point in line]
-        feature = QgsFeature(pointLayer.fields())
+        feature = QgsFeature(lineLayer.fields())
         lineString = QgsGeometry.fromPolylineXY(transformed_line)
         feature.setGeometry(lineString)
         lineProvider.addFeature(feature)
@@ -205,7 +212,7 @@ def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]]
 
     for polygon in polygons:
         transformed_polygon = [[transformer.transform(QgsPointXY(*point)) for point in line] for line in polygon]
-        feature = QgsFeature(pointLayer.fields())
+        feature = QgsFeature(polygonLayer.fields())
         qgsPolygon = QgsGeometry.fromPolygonXY(transformed_polygon)
         feature.setGeometry(qgsPolygon)
         polygonProvider.addFeature(feature)
@@ -327,7 +334,8 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
 
     circleLayer.startEditing()
     # 分别创建三个同心圆并添加到图层
-    level = 1
+    area_name = ['控制区','警戒区','核心区']
+    level = 0
     for radius in radii:
         points = []
         for i in range(num_segments):
@@ -338,7 +346,7 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
         points.append(points[0])  # 闭合多边形
         circle_geometry = QgsGeometry.fromPolygonXY([points])
         feature = QgsFeature(circleLayer.fields())
-        feature.setAttribute("name", f"level-{level}")
+        feature.setAttribute("name", area_name[level])
         feature.setGeometry(circle_geometry)
         circleProvider.addFeature(feature)
         level += 1
@@ -369,7 +377,7 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
         # 设置边线颜色和宽度
         symbol.symbolLayer(0).setStrokeColor(QtGui.QColor(border_color))
         symbol.symbolLayer(0).setStrokeWidth(border_width)
-        category = QgsRendererCategory(f"level-{i + 1}", symbol, f"level-{i + 1}")
+        category = QgsRendererCategory(area_name[i], symbol, area_name[i])
         categories.append(category)
 
     renderer = QgsCategorizedSymbolRenderer("name", categories)
@@ -389,22 +397,21 @@ def customize_legend(legend, legend_title):
         legend_model.removeRow(0)
     # legend.cleanup()  # Clear existing legend items
 
-    # Add specific layers to the legend
+    # Add specific layers to the legend, excluding BaseTile and MainTile
     project = QgsProject.instance()
-    layers = project.mapLayersByName("民警") + project.mapLayersByName("应急道路") + project.mapLayersByName("重点区域")
+    layers = project.mapLayers().values()
     for layer in layers:
-        legend_model.rootGroup().addLayer(layer)
+        if layer.name() not in ["BaseTile", "MainTile"]:
+            legend_model.rootGroup().addLayer(layer)
+
     # Customize the appearance of legend items
     for layer in layers:
-        layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
-        if layer_tree_layer:
-            for i in range(len(layer_tree_layer.children())):
-                item = layer_tree_layer.children()[i]
-                if isinstance(item, QgsLayerTreeLayer):
-                    item.setFont(QtGui.QFont("Arial", 10))  # Set font for legend items
-                    item.setSymbolSize(QtCore.QSizeF(10, 10))  # Set symbol size
-
-
+        if layer.name() not in ["BaseTile", "MainTile"]:
+            layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
+            if layer_tree_layer:
+                for i in range(len(layer_tree_layer.children())):
+                    # Customize each legend item if needed
+                    pass
 
 def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout = QgsPrintLayout(project)
@@ -584,27 +591,27 @@ if __name__ == '__main__':
     project = QgsProject.instance()
 
     # Create map settings and set the extent
-    map_settings = QgsMapSettings()
-    map_extent = QgsRectangle(111.47, 40.72, 111.49, 40.73)
-    map_settings.setExtent(map_extent)
+    # map_settings = QgsMapSettings()
+    # map_extent = QgsRectangle(111.47, 40.72, 111.49, 40.73)
+    # map_settings.setExtent(map_extent)
 
     # qpt_file_path = f"{GEOJSON_PREFIX}/jingwei1.qpt"
     # load_qpt_template(project, qpt_file_path)
 
     # Load tile layers
     base_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/hhht/{z}/{x}/{y}.png"
-    base_tile_layer = QgsRasterLayer(base_tile_url, "Base-Tile", "wms")
+    base_tile_layer = QgsRasterLayer(base_tile_url, "BaseTile", "wms")
     if base_tile_layer.isValid():
         project.addMapLayer(base_tile_layer)
 
     tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/%E5%81%A5%E5%BA%B7%E8%B0%B7%E6%AD%A3%E5%B0%84/{z}/{x}/{y}.png"
-    tile_layer = QgsRasterLayer(tile_url, "Main-Tile", "wms")
+    tile_layer = QgsRasterLayer(tile_url, "MainTile", "wms")
     if tile_layer.isValid():
         project.addMapLayer(tile_layer)
 
     # Add vector layer to project
     pointLayer = add_points("民警", "民警", "minjing-Point",
-                            [(111.4775222, 40.7290133), (111.4766598, 40.7282033)])
+                            [(111.4775222, 40.7290133), (111.4766598, 40.7282033)], 5, "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAolBMVEUAAAC1xPmIn/SKn//n6/3e5PzS2vvN1vusvPeUqfWNpPUAMub////z9f6mt/by9P1Ia+2MovP6+/72+P7AzPiUqfQrVOoFNuYgTOnp7fzi5/xOcO2dr/UuV+p6lPISQOisvPejtPZ/l/IcSOje5Ptaeu9EaOybrvV3kfFTdO7X3vvI0vm9yfi6x/iDm/Jvi/BphvBVdu5Nb+05X+uPpPSOpPN4UAcsAAAAC3RSTlMA0y0M/fny7sF6UvKXmSMAAAGJSURBVDjLhZNXYoMwDEAhkGnZmGFICZBA9l7t/a9WRx6h6Qfvx0g22nLeeGN32Ke0P3THnvOfnhtAkLAwZIn8cHsf194ojgqeESTjRRSPvD+/D4BNSYspg0HLyMSnM/LBjPoT+7+fp6icX9liwa5zFMrc1za8AcX7VFBYheEKqEC5pAMVxwjQ/gYkBec1SDboBUboIGbKfiQvdpwX8ohUxCx+OXG1REJ5E+y+X++EziVyZQTBlijm+ZfGX2pVEXjOGDjRnEFzNhoOY8cNMiOKphF1LapdaDRZ4DrDhBiOAP7hkAMcrSoZOn1mJQEaYVWs79DQSiVoSqsKKT4wLABZkNYD5cImCpJ8TlouMEjLxpbZBolpWu4gWWtBp/kuVNqcAH5kHKcmbRXKCwqVQqISWOORlKbUplmPGJD9XZ3xQzXLtHtJQfF8goIusd1mYNag2e9Bs8aBMSOXVStAqkqdqyZL1cjZoV3y20XUVVWLy41L+6ka2u6x714cu3rb9+pt7ep1L2/n+v8CysQxDA9OhyUAAAAASUVORK5CYII=")
     project.addMapLayer(pointLayer)
 
     # Add line layer to project
@@ -635,7 +642,7 @@ if __name__ == '__main__':
 
     projectLayers = project.mapLayers().values()
     for layer in projectLayers:
-        if layer.name() not in ["Main-Tile", "Base-Tile"]:
+        if layer.name() not in ["MainTile", "BaseTile"]:
             extent.combineExtentWith(layer.extent())
 
     # Set the map canvas extent to the combined extent
