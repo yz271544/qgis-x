@@ -450,30 +450,6 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     # 获取主画布范围并设置到地图项
     main_canvas_extent = canvas.extent()
     map_item.setExtent(main_canvas_extent)
-    # map_item.refresh()
-    print(f"map:{main_canvas_extent}")
-    # map_item.setExtent(extent)
-    print("111::extent:", map_item.extent())
-
-    print("222::extent:", map_item.extent())
-    print(f"222:{main_canvas_extent}")
-
-
-    # # 设置地图项在布局中的位置和大小
-    # width = PaperSpecification.A4.value[1] - left_margin - right_margin
-    # height = PaperSpecification.A4.value[0] - top_margin - bottom_margin
-    # print(f"x: {left_margin}, y: {top_margin}, width: {width}, height: {height}")
-    # map_item.attemptSetSceneRect(QtCore.QRectF(left_margin, top_margin, width, height), True)  # 设置地图项在布局中的大小
-    # map_item.setFrameStrokeWidth(QgsLayoutMeasurement(1, QgsUnitTypes.LayoutMillimeters))
-
-    # map_item.updateBoundingRect()
-    # map_item.refreshItemSize()
-    # map_item.fixedSize()
-    # map_item.refresh()
-    print("map_item::extent:", map_item.extent())
-    print("mapPositionWithUnit:", map_item.positionWithUnits())
-    print("mapSizeWithUnits:", map_item.sizeWithUnits())
-
 
 
     # map_item.atlasScalingMode()
@@ -538,6 +514,7 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     remarks_bg.setFrameEnabled(True)
     remarks_bg.setFrameStrokeWidth(QgsLayoutMeasurement(0.5, QgsUnitTypes.LayoutMillimeters))
     remarks_bg.attemptSetSceneRect(QtCore.QRectF(remarks_x, remarks_y, remarks_width, remarks_height))
+    layout.addLayoutItem(remarks_bg)
 
     # Add remarks text
     remarks = QgsLayoutItemLabel(layout)
@@ -547,13 +524,14 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     remarks.setHAlign(QtCore.Qt.AlignLeft)
     remarks.adjustSizeToText()
     remarks.attemptSetSceneRect(QtCore.QRectF(remarks_x + 2, remarks_y + 2, remarks.boundingRect().width(), remarks.boundingRect().height()))
+    layout.addLayoutItem(remarks)
 
     # Group the background and text
     group = QgsLayoutItemGroup(layout)
     group.addItem(remarks_bg)
     group.addItem(remarks)
-    group.setReferencePoint(QgsLayoutItem.ReferencePoint.LowerLeft)
-    group.attemptSetSceneRect(QtCore.QRectF(remarks_x, remarks_y, remarks_width, remarks_height))
+    # group.setReferencePoint(QgsLayoutItem.ReferencePoint.LowerLeft)
+    # group.attemptSetSceneRect(QtCore.QRectF(remarks_x, remarks_y, remarks_width, remarks_height))
     layout.addLayoutItem(group)
 
     layout.refresh()
