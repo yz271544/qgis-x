@@ -41,7 +41,7 @@ if __name__ == '__main__':
         project.addMapLayer(tile_layer)
 
     # Define GeoJSON file path
-    geojson_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.geojson'
+    geojson_path = '/common/output/projects/MinJing_Points.geojson'
 
     # Create vector layer
     pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", "MinJing_Points", "memory")

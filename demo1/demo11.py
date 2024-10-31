@@ -1,6 +1,7 @@
 import os
-
+from qgis.gui import QgsMapCanvas
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsProject,
     QgsField,
@@ -22,19 +23,40 @@ from qgis.core import (
     QgsRendererCategory,
     QgsCategorizedSymbolRenderer,
     QgsPrintLayout,
+    QgsLayoutPageCollection,
     QgsLayoutItemMap,
-    QgsLayoutItemLegend
+    QgsLayoutItemLegend,
+    QgsLayoutItemLabel,
+    QgsRectangle,
+    QgsReadWriteContext,
+    QgsMargins,
+    QgsTextFormat,
+    QgsMapSettings,
+    QgsLayoutAligner,
 )
-from qgis.PyQt.QtCore import QVariant, QMetaType
-from qgis.PyQt.QtGui import QColor
+from qgis.core import Qgis
+# from qgis.PyQt.QtCore import QVariant, QMetaType, QRectF
+from qgis.PyQt import QtCore
+# from qgis.PyQt.QtGui import QColor
+from qgis.PyQt import QtGui
+# from qgis.PyQt.QtXml import QDomDocument
+from qgis.PyQt import QtXml
 from typing import Optional
-import sys
+
+import sys, os
 import math
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_DIR = os.path.dirname(BASE_DIR)
+sys.path.append(BASE_DIR)
+sys.path.append(PROJECT_DIR)
+from core.PaperSize import PaperSpecification
+from utils.unit_util import UnitUtil
 
-GEOJSON_PREFIX = '/lyndon/iProject/pypath/qgis-x/output/projects/'
-ICON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/icon/'
-RESULT_PREFIX = '/lyndon/iProject/pypath/qgis-x/output/'
+
+LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
+GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
+ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
 
 
 def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: list[tuple[float, float]],
@@ -53,9 +75,9 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
     pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", layer_name, "memory")
     pointProvider = pointLayer.dataProvider()
     pointProvider.addAttributes([
-        QgsField("name", QMetaType.Type(QVariant.String), len=254),  # Ensure field name length does not exceed 254
-        QgsField("x", QMetaType.Type(QVariant.Double)),
-        QgsField("y", QMetaType.Type(QVariant.Double))
+        QgsField("name", QtCore.QMetaType.Type(QtCore.QVariant.String), len=254),  # Ensure field name length does not exceed 254
+        QgsField("x", QtCore.QMetaType.Type(QtCore.QVariant.Double)),
+        QgsField("y", QtCore.QMetaType.Type(QtCore.QVariant.Double))
     ])
     pointLayer.updateFields()
     # Set coordinate transform
@@ -84,7 +106,7 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
 
     # Define GeoJSON file path
     # geojson_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.geojson'
-    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
+    geojson_path = f'{GEOJSON_PREFIX}/{layer_name}.geojson'
     QgsVectorFileWriter.writeAsVectorFormatV3(pointLayer, geojson_path, QgsCoordinateTransformContext(), options)
     # Load the GeoJSON file
     pointLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
@@ -92,7 +114,7 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
         print("Failed to load the layer!")
         sys.exit(1)
     # icon_path = "D:/iProject/pypath/qgis-x/common/icon/民警.png"
-    icon_path = ICON_PREFIX + f'{icon_name}.png'
+    icon_path = f'{ICON_PREFIX}/{icon_name}.png'
     raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
     raster_layer.setSize(point_size)
     # symbol = QgsMarkerSymbol()
@@ -138,7 +160,7 @@ def add_line(layer_name: str, lines: list[list[tuple[float, float]]], color: str
     options.fileEncoding = "UTF-8"
     # Define GeoJSON file path
     # geojson_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.geojson'
-    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
+    geojson_path = f'{GEOJSON_PREFIX}/{layer_name}.geojson'
     QgsVectorFileWriter.writeAsVectorFormatV3(lineLayer, geojson_path, QgsCoordinateTransformContext(), options)
     # Load the GeoJSON file
     lineLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
@@ -149,7 +171,7 @@ def add_line(layer_name: str, lines: list[list[tuple[float, float]]], color: str
     # Set line style, exp: color, stroke width
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.LineGeometry)
     # symbol.setColor("#e77148")
-    symbol.setColor(QColor(color))
+    symbol.setColor(QtGui.QColor(color))
     symbol.setWidth(2)
     renderer = QgsSingleSymbolRenderer(symbol)
     lineLayer.setRenderer(renderer)
@@ -191,7 +213,7 @@ def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]]
     options.fileEncoding = "UTF-8"
     # Define GeoJSON file path
     # geojson_path = 'D:/iProject/pypath/qgis-x/output/projects/MinJing_Points.geojson'
-    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
+    geojson_path = f'{GEOJSON_PREFIX}/{layer_name}.geojson'
     QgsVectorFileWriter.writeAsVectorFormatV3(polygonLayer, geojson_path, QgsCoordinateTransformContext(), options)
     # Load the GeoJSON file
     polygonLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
@@ -202,7 +224,7 @@ def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]]
     # Set line style, exp: color, stroke width
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
     # symbol.setColor("#e77148")
-    symbol.setColor(QColor(color))
+    symbol.setColor(QtGui.QColor(color))
     symbol.setOpacity(opacity)
     renderer = QgsSingleSymbolRenderer(symbol)
     polygonLayer.setRenderer(renderer)
@@ -248,7 +270,7 @@ def add_circle(layer_name: str, center_point: tuple[float, float], radius: float
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = "GeoJSON"
     options.fileEncoding = "UTF - 8"
-    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
+    geojson_path = f'{GEOJSON_PREFIX}/{layer_name}.geojson'
     QgsVectorFileWriter.writeAsVectorFormatV3(circleLayer, geojson_path, QgsCoordinateTransformContext(), options)
     circleLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
     if not circleLayer.isValid():
@@ -256,7 +278,7 @@ def add_circle(layer_name: str, center_point: tuple[float, float], radius: float
         sys.exit(1)
 
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
-    symbol.setColor(QColor(color))
+    symbol.setColor(QtGui.QColor(color))
     symbol.setOpacity(opacity)
     renderer = QgsSingleSymbolRenderer(symbol)
     circleLayer.setRenderer(renderer)
@@ -287,7 +309,7 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     circleLayer = QgsVectorLayer("Polygon?crs=EPSG:3857", layer_name, "memory")
     circleProvider = circleLayer.dataProvider()
     circleProvider.addAttributes([
-        QgsField("name", QMetaType.Type(QVariant.String), len=254)  # Ensure field name length does not exceed 254
+        QgsField("name", QtCore.QMetaType.Type(QtCore.QVariant.String), len=254)  # Ensure field name length does not exceed 254
     ])
     circleLayer.updateFields()
     crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -321,7 +343,7 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     options = QgsVectorFileWriter.SaveVectorOptions()
     options.driverName = "GeoJSON"
     options.fileEncoding = "UTF - 8"
-    geojson_path = GEOJSON_PREFIX + f'{layer_name}.geojson'
+    geojson_path = f'{GEOJSON_PREFIX}/{layer_name}.geojson'
     QgsVectorFileWriter.writeAsVectorFormatV3(circleLayer, geojson_path, QgsCoordinateTransformContext(), options)
     circleLayer = QgsVectorLayer(geojson_path, layer_name, "ogr")
     if not circleLayer.isValid():
@@ -331,13 +353,13 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     # 为每个圆分别设置样式
     categories = []
     border_color = "#ffffff"  # 边线颜色，这里设置为黑色
-    border_width = 0.5  # 边线宽度
+    border_width = 0.2  # 边线宽度
     for i, (color, opacity) in enumerate(zip(colors, opacities)):
         symbol = QgsFillSymbol()
-        symbol.setColor(QColor(color))
+        symbol.setColor(QtGui.QColor(color))
         symbol.setOpacity(opacity)
         # 设置边线颜色和宽度
-        symbol.symbolLayer(0).setStrokeColor(QColor(border_color))
+        symbol.symbolLayer(0).setStrokeColor(QtGui.QColor(border_color))
         symbol.symbolLayer(0).setStrokeWidth(border_width)
         category = QgsRendererCategory(f"level-{i + 1}", symbol, f"level-{i + 1}")
         categories.append(category)
@@ -347,12 +369,144 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     return circleLayer
 
 
+def add_print_layout(project) -> QgsPrintLayout:
+    layout = QgsPrintLayout(project)
+    layout.setName("位置图")
+    layout.initializeDefaults()
+
+    # 设置纸张类型和大小（以A4为例）
+    page_collection = layout.pageCollection()
+    page = page_collection.page(0)
+    # 1表示横向，0表示纵向
+    page.setPageSize(PaperSpecification.A4.get_name(), 1)
+
+    # 设置布局的边距 (单位：毫米) 左上右下
+    left_margin = 22
+    top_margin = 30
+    right_margin = 18
+    bottom_margin = 22
+
+    # Print margins information
+    print(f"Left: {left_margin}, Top: {top_margin}, Right: {right_margin}, Bottom: {bottom_margin}")
+
+    map_item = QgsLayoutItemMap(layout)
+    map_item.setKeepLayerSet(False)
+    map_item.setFrameEnabled(False)
+    extent = QgsRectangle()
+    projectLayers = project.mapLayers().values()
+    for layer in projectLayers:
+        # extent.combineExtentWith(layer.extent())
+        if layer.name() not in ["Main-Tile", "Base-Tile"]:
+            print(layer.name(), layer.extent())
+            extent.combineExtentWith(layer.extent())
+            # layer_extent = layer.extent()
+            # features = layer.getFeatures()
+            # if not layer_extent.isEmpty():
+            #     for feature in features:
+            #         geom = feature.geometry()
+            #         if not QgsGeometry.isNull(geom):
+            #             print("name:", layer.name(), " extent:", layer.extent(), "geomBox:", geom.boundingBox())
+            #             extent.combineExtentWith(geom.boundingBox())
+                # extent.combineExtentWith(layer_extent)
+    print(f"map:{extent}")
+    map_item.setExtent(extent)
+    print("222::extent:", map_item.extent())
+    print(f"222:{extent}")
+    width = PaperSpecification.A4.value[1] - left_margin - right_margin
+    height = PaperSpecification.A4.value[0] - top_margin - bottom_margin
+    print("333::extent:", map_item.extent())
+    print(f"333:{extent}")
+    print(f"x: {left_margin}, y: {top_margin}, width: {width}, height: {height}")
+    map_item.attemptSetSceneRect(QtCore.QRectF(left_margin, top_margin, width, height), True)  # 设置地图项在布局中的大小
+    print("map_item::extent:", map_item.extent())
+    map_item.updateBoundingBox()
+    print("444::extent:", map_item.extent())
+    print(f"444:{extent}")
+
+    print("mapPositionWithUnit:", map_item.positionWithUnits())
+    print("mapSizeWithUnits:", map_item.sizeWithUnits())
+
+    # map_item.setPos(QtCore.QPointF(0, 0))
+    layout.addLayoutItem(map_item)
+
+    # 添加标题
+    title = QgsLayoutItemLabel(layout)
+    title.setText("郑州二期警务部署图")
+
+    # Use QgsTextFormat to set the font
+    text_format = QgsTextFormat()
+    text_format.allowHtmlFormatting()
+    font = QtGui.QFont("SimSun", 30)
+    font.setFamily("SimSun")
+    font.setPixelSize(30)
+    font.setPointSize(30)
+    text_format.setFont(font)
+    text_format.setForcedBold(True)
+    title.setVAlign(QtCore.Qt.AlignBottom)  # 垂直居中
+    title.setHAlign(QtCore.Qt.AlignHCenter)  # 水平居中
+    title.adjustSizeToText()
+    text_format.setNamedStyle("font-size: 30px")
+    text_css = text_format.asCSS()
+    print(f"text_css: {text_css}")
+    title.setTextFormat(text_format)
+    title.setFont(font)
+    title.attemptSetSceneRect(QtCore.QRectF(left_margin, 0, width, top_margin - 10))
+    # title.setPos(QtCore.QPointF(50, 50))
+    layout.addLayoutItem(title)
+
+    # 添加图例
+    legend = QgsLayoutItemLegend(layout)
+    legend.setTitle("Legend")
+    legend.setAutoUpdateModel(True)
+    legend_width = 40
+    legend_height = 80
+    legend_x = left_margin + width - legend_width
+    legend_y = top_margin + height - legend_height
+    legend.attemptSetSceneRect(QtCore.QRectF(legend_x, legend_y, 40, 80))
+    # legend.setPos(QtCore.QPointF(120, 10))
+    layout.addLayoutItem(legend)
+
+    # 保存为.qpt文件
+    qpt_file_path = f"{GEOJSON_PREFIX}/jingwei3.qpt"
+    context = QgsReadWriteContext()
+    layout.saveAsTemplate(qpt_file_path, context)
+
+    # 或者保存为.qpt模板文件
+    # doc = QtXml.QDomDocument()
+    # layout.saveAsTemplate(doc)
+    # with open('D:/iProject/pypath/qgis-x/output/projects/demo_layout.qpt', 'w') as f:
+    #     f.write(doc.toString())
+
+    return layout
+
+
+def load_qpt_template(project, qpt_file_path):
+    doc = QtXml.QDomDocument()
+    with open(qpt_file_path, 'r') as file:
+        doc.setContent(file.read())
+    layout = QgsPrintLayout(project)
+    layout.loadFromTemplate(doc, QgsReadWriteContext())
+    layout_name = "Loaded Layout"  # 你可以自定义布局名称
+    project.layoutManager().addLayout(layout)
+    return layout
+
+
 if __name__ == '__main__':
     qgis = QgsApplication([], False)
     qgis.initQgis()
 
     # Create project instance
     project = QgsProject.instance()
+
+    # Create map settings and set the extent
+    map_settings = QgsMapSettings()
+    map_extent = QgsRectangle(111.47, 40.72, 111.49, 40.73)
+    map_settings.setExtent(map_extent)
+
+    qpt_file_path = f"{GEOJSON_PREFIX}/jingwei3.qpt"
+    layout = load_qpt_template(project, qpt_file_path)
+    project.layoutManager().addLayout(layout)
+
 
     # Load tile layers
     base_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/hhht/{z}/{x}/{y}.png"
@@ -389,8 +543,31 @@ if __name__ == '__main__':
                                      ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
     project.addMapLayer(cir1Layer)
 
+
+    # project.layoutManager().addLayout(add_print_layout(project))
+
+    # 如下是将添加到地图的图层，设置为地图视口范围
+    # Create map settings and set the extent
+    map_settings = QgsMapSettings()
+
+    # Calculate the combined extent of all layers
+    extent = QgsRectangle()
+
+    projectLayers = project.mapLayers().values()
+    for layer in projectLayers:
+        if layer.name() not in ["Main-Tile", "Base-Tile"]:
+            extent.combineExtentWith(layer.extent())
+
+    # Set the map canvas extent to the combined extent
+    project.setCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
+    map_settings.setExtent(extent)
+
+    # Create a map canvas and set its extent
+    canvas = QgsMapCanvas()
+    canvas.setExtent(extent)
+
     # Save project
-    project.write(RESULT_PREFIX + "demo8.qgz")
+    project.write(f"{GEOJSON_PREFIX}/demo11.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()

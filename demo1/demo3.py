@@ -152,7 +152,7 @@ if __name__ == '__main__':
     # project.setMapScales(scale)
 
     # 保存项目到 .qgs 或 .qgz 文件
-    project.write("D:/iProject/pypath/qgis-x/output/projects/demo3.qgz")
+    project.write("/common/output/projects/demo3.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()

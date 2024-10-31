@@ -1,6 +1,8 @@
 import os
 
+from qgis.gui import QgsMapCanvas
 from qgis.core import (
+    Qgis,
     QgsApplication,
     QgsProject,
     QgsField,
@@ -22,19 +24,31 @@ from qgis.core import (
     QgsRendererCategory,
     QgsCategorizedSymbolRenderer,
     QgsPrintLayout,
+    QgsLayoutPageCollection,
     QgsLayoutItemMap,
-    QgsLayoutItemLegend
+    QgsLayoutItemLegend,
+    QgsLayoutItemLabel,
+    QgsRectangle,
+    QgsReadWriteContext,
+    QgsMargins,
+    QgsTextFormat,
+    QgsMapSettings
 )
-from qgis.PyQt.QtCore import QVariant, QMetaType
-from qgis.PyQt.QtGui import QColor
+from qgis.core import Qgis
+# from qgis.PyQt.QtCore import QVariant, QMetaType, QRectF
+from qgis.PyQt import QtCore
+# from qgis.PyQt.QtGui import QColor
+from qgis.PyQt import QtGui
+# from qgis.PyQt.QtXml import QDomDocument
+from qgis.PyQt import QtXml
 from typing import Optional
 import sys
 import math
 
+LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
+GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/output/projects/'
+ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon/'
 
-GEOJSON_PREFIX = '/lyndon/iProject/pypath/qgis-x/output/projects/'
-ICON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/icon/'
-RESULT_PREFIX = '/lyndon/iProject/pypath/qgis-x/output/'
 
 
 def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: list[tuple[float, float]],
@@ -53,9 +67,9 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
     pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", layer_name, "memory")
     pointProvider = pointLayer.dataProvider()
     pointProvider.addAttributes([
-        QgsField("name", QMetaType.Type(QVariant.String), len=254),  # Ensure field name length does not exceed 254
-        QgsField("x", QMetaType.Type(QVariant.Double)),
-        QgsField("y", QMetaType.Type(QVariant.Double))
+        QgsField("name", QtCore.QMetaType.Type(QtCore.QVariant.String), len=254),  # Ensure field name length does not exceed 254
+        QgsField("x", QtCore.QMetaType.Type(QtCore.QVariant.Double)),
+        QgsField("y", QtCore.QMetaType.Type(QtCore.QVariant.Double))
     ])
     pointLayer.updateFields()
     # Set coordinate transform
@@ -149,7 +163,7 @@ def add_line(layer_name: str, lines: list[list[tuple[float, float]]], color: str
     # Set line style, exp: color, stroke width
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.LineGeometry)
     # symbol.setColor("#e77148")
-    symbol.setColor(QColor(color))
+    symbol.setColor(QtGui.QColor(color))
     symbol.setWidth(2)
     renderer = QgsSingleSymbolRenderer(symbol)
     lineLayer.setRenderer(renderer)
@@ -202,7 +216,7 @@ def add_polygon(layer_name: str, polygons: list[list[list[tuple[float, float]]]]
     # Set line style, exp: color, stroke width
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
     # symbol.setColor("#e77148")
-    symbol.setColor(QColor(color))
+    symbol.setColor(QtGui.QColor(color))
     symbol.setOpacity(opacity)
     renderer = QgsSingleSymbolRenderer(symbol)
     polygonLayer.setRenderer(renderer)
@@ -256,7 +270,7 @@ def add_circle(layer_name: str, center_point: tuple[float, float], radius: float
         sys.exit(1)
 
     symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PolygonGeometry)
-    symbol.setColor(QColor(color))
+    symbol.setColor(QtGui.QColor(color))
     symbol.setOpacity(opacity)
     renderer = QgsSingleSymbolRenderer(symbol)
     circleLayer.setRenderer(renderer)
@@ -287,7 +301,7 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     circleLayer = QgsVectorLayer("Polygon?crs=EPSG:3857", layer_name, "memory")
     circleProvider = circleLayer.dataProvider()
     circleProvider.addAttributes([
-        QgsField("name", QMetaType.Type(QVariant.String), len=254)  # Ensure field name length does not exceed 254
+        QgsField("name", QtCore.QMetaType.Type(QtCore.QVariant.String), len=254)  # Ensure field name length does not exceed 254
     ])
     circleLayer.updateFields()
     crs_4326 = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -331,13 +345,13 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     # 为每个圆分别设置样式
     categories = []
     border_color = "#ffffff"  # 边线颜色，这里设置为黑色
-    border_width = 0.5  # 边线宽度
+    border_width = 0.2  # 边线宽度
     for i, (color, opacity) in enumerate(zip(colors, opacities)):
         symbol = QgsFillSymbol()
-        symbol.setColor(QColor(color))
+        symbol.setColor(QtGui.QColor(color))
         symbol.setOpacity(opacity)
         # 设置边线颜色和宽度
-        symbol.symbolLayer(0).setStrokeColor(QColor(border_color))
+        symbol.symbolLayer(0).setStrokeColor(QtGui.QColor(border_color))
         symbol.symbolLayer(0).setStrokeWidth(border_width)
         category = QgsRendererCategory(f"level-{i + 1}", symbol, f"level-{i + 1}")
         categories.append(category)
@@ -345,7 +359,6 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     renderer = QgsCategorizedSymbolRenderer("name", categories)
     circleLayer.setRenderer(renderer)
     return circleLayer
-
 
 if __name__ == '__main__':
     qgis = QgsApplication([], False)
@@ -389,8 +402,28 @@ if __name__ == '__main__':
                                      ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
     project.addMapLayer(cir1Layer)
 
+    # 如下是将添加到地图的图层，设置为地图视口范围
+    # Create map settings and set the extent
+    map_settings = QgsMapSettings()
+
+    # Calculate the combined extent of all layers
+    extent = QgsRectangle()
+
+    projectLayers = project.mapLayers().values()
+    for layer in projectLayers:
+        if layer.name() not in ["Main-Tile", "Base-Tile"]:
+            extent.combineExtentWith(layer.extent())
+
+    # Set the map canvas extent to the combined extent
+    project.setCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
+    map_settings.setExtent(extent)
+
+    # Create a map canvas and set its extent
+    canvas = QgsMapCanvas()
+    canvas.setExtent(extent)
+
     # Save project
-    project.write(RESULT_PREFIX + "demo8.qgz")
+    project.write("D:/iProject/pypath/qgis-x/output/projects/demo10.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()

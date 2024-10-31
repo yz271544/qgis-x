@@ -48,7 +48,7 @@ if __name__ == '__main__':
         project.addMapLayer(tile_layer)
 
     # 创建矢量图层
-    shapefile_path = "D:/iProject/pypath/qgis-x/output/projects/Transformed_Points.shp"
+    shapefile_path = "/common/output/projects/Transformed_Points.shp"
     pointLayer = QgsVectorLayer("Point?crs=EPSG:3857", "Transformed_Points", "ogr")
     pointProvider = pointLayer.dataProvider()
     pointProvider.addAttributes([QgsField("name", QMetaType.Type(QVariant.String)), QgsField("x", QMetaType.Type(QVariant.Int)), QgsField("y", QMetaType.Type(QVariant.Int))])
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
 
     # 持久化图层数据到 shapefile
-    layer_output_path = "D:/iProject/pypath/qgis-x/output/projects/Transformed_Points.shp"
+    layer_output_path = "/common/output/projects/Transformed_Points.shp"
     # error = QgsVectorFileWriter.writeAsVectorFormat(pointLayer, layer_output_path, "UTF-8", pointLayer.crs(),
     #                                                 "ESRI Shapefile")
 
