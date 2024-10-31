@@ -63,10 +63,10 @@ from core.PaperSize import PaperSpecification
 from utils.unit_util import UnitUtil
 
 
-LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
-GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
+LAYOUT_DIR = "/lyndon/iProject/pypath/qgis-x/common/layout"
+GEOJSON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/output/projects'
 # ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
-ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
+ICON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/output/projects'
 
 
 def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: list[tuple[float, float]],
