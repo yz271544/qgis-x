@@ -42,7 +42,8 @@ from qgis.core import (
     QgsLayerTreeLayer,
     QgsLayoutItemShape,
     QgsLayoutItemGroup,
-    QgsRuleBasedRenderer
+    QgsRuleBasedRenderer,
+    QgsLayoutExporter
 )
 from qgis.core import Qgis
 # from qgis.PyQt.QtCore import QVariant, QMetaType, QRectF
@@ -55,6 +56,7 @@ from typing import Optional
 
 import sys, os
 import math
+import time
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_DIR = os.path.dirname(BASE_DIR)
@@ -62,7 +64,8 @@ sys.path.append(BASE_DIR)
 sys.path.append(PROJECT_DIR)
 from core.PaperSize import PaperSpecification
 from utils.unit_util import UnitUtil
-
+from utils.file_util import FileUtil
+from utils.qt_font import QtFontUtil
 
 LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
 GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
@@ -461,6 +464,7 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
 
     map_item.setKeepLayerSet(False)
     map_item.setFrameEnabled(True)
+    map_item.setFollowVisibilityPresetName("DefaultMap")
 
 
     # 设置地图项在布局中的位置和大小
@@ -488,22 +492,29 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     title.setText("郑州二期警务部署图")
 
     # Use QgsTextFormat to set the font
-    text_format = QgsTextFormat()
-    text_format.allowHtmlFormatting()
-    font = QtGui.QFont("SimSun", 30)
-    font.setFamily("SimSun")
-    font.setPixelSize(30)
-    font.setPointSize(30)
-    text_format.setFont(font)
-    text_format.setForcedBold(True)
+    # text_format = QgsTextFormat()
+    # text_format.allowHtmlFormatting()
+    # font = text_format.font()
+    # # font = QtGui.QFont("黑体", 30)
+    # # font.setFamily("SimSun")
+    # # font.setPixelSize(30)
+    # font.setFamily("黑体")
+    # # font.setPointSize(30)
+    # text_format.setFont(font)
+    # text_format.setForcedBold(True)
+
+    text_format = QtFontUtil.create_font("黑体", 30, "#000000", True, False, Qgis.TextOrientation.Horizontal)
+
     title.setVAlign(QtCore.Qt.AlignBottom)  # 垂直居中
     title.setHAlign(QtCore.Qt.AlignHCenter)  # 水平居中
     title.adjustSizeToText()
-    text_format.setNamedStyle("font-size: 30px")
-    text_css = text_format.asCSS()
-    print(f"text_css: {text_css}")
+    # text_format.setSizeUnit(Qgis.RenderUnit.Points)
+    # text_format.setSize(30)
+    # text_format.setNamedStyle("font-size: 30px")
+    # text_css = text_format.asCSS()
+    # print(f"text_css: {text_css}")
     title.setTextFormat(text_format)
-    title.setFont(font)
+    # title.setFont(font)
     title.attemptSetSceneRect(QtCore.QRectF(left_margin, 0, map_width, top_margin - 10))
     # title.setPos(QtCore.QPointF(50, 50))
     layout.addLayoutItem(title)
@@ -527,8 +538,11 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
 
     # Add remarks box background
     remarks_text = "备注: 这里填写备注信息"
-    remarks_format = QgsTextFormat()
-    remarks_format.setFont(QtGui.QFont("SimSun", 12))
+    # remarks_format = QgsTextFormat()
+    # remarks_format.setFont(QtGui.QFont("SimSun", 12))
+
+    remarks_format = QtFontUtil.create_font("SimSun", 12, "#000000",False, False, Qgis.TextOrientation.Horizontal)
+
     remarks_width = 100  # Adjust width as needed
     remarks_height = 20  # Adjust height as needed
     remarks_x = left_margin + 1
@@ -577,6 +591,41 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     return layout
 
 
+def add_right_side_label(layout):
+    # Create a label item
+    label = QgsLayoutItemLabel(layout)
+    label.setText("索引标题")
+
+    # Set the font properties
+    # text_format = QgsTextFormat()
+    # font = QtGui.QFont("SimHei", 14)
+    # text_format.setFont(font)
+    # text_format.setColor(QtGui.QColor("black"))
+
+    text_format = QtFontUtil.create_font("黑体", 14, "#000000", False, False, Qgis.TextOrientation.Vertical, 3.0)
+
+    label.setTextFormat(text_format)
+    label.setVAlign(QtCore.Qt.AlignVCenter)  # 垂直居中
+    # text_format = QgsTextFormat()
+    # text_format.setOrientation(Qgis.TextOrientation.Vertical)
+    # font = text_format.font()
+    # font.setFamily("黑体")
+    # font.setPointSize(14)
+    # font.setLetterSpacing(QtGui.QFont.AbsoluteSpacing, 3)
+    # text_format.setFont(font)
+    # label.setTextFormat(text_format)
+    # Set the label to vertical text
+    # label.setRotation(90)
+
+    # Position the label
+    label_x = layout.pageCollection().page(0).pageSize().width() - 5  # 0.5 cm from the right border
+    label_y = 5  # 0.5 cm from the top border
+    label.attemptSetSceneRect(QtCore.QRectF(label_x, label_y, 14, 100))  # Adjust width and height as needed
+
+    # Add the label to the layout
+    layout.addLayoutItem(label)
+
+
 def load_qpt_template(project, qpt_file_path):
     doc = QtXml.QDomDocument()
     if os.path.exists(qpt_file_path):
@@ -601,6 +650,34 @@ def update_layout_extent(layout_name):
                 item.setExtent(canvas.extent())
                 layout.refresh()
 
+
+def export_layout_to_image(layout, output_path):
+    exporter = QgsLayoutExporter(layout)
+    settings = QgsLayoutExporter.ImageExportSettings()
+    settings.dpi = 300
+    start_time = time.time()
+
+    try:
+        print(f"delete file {output_path}")
+        FileUtil.delete_file(output_path)
+        time.sleep(0.5)  # Add a small delay to ensure the file is deleted
+    except Exception as e:
+        print(f"delete file {output_path} failed: {e}")
+        pass
+
+    if os.path.exists(output_path):
+        print(f"delete file {output_path} failed")
+        return
+
+    print(f"Starting export image to {output_path}...")
+    result = exporter.exportToImage(output_path, settings)
+
+    if result == QgsLayoutExporter.Success:
+        print(f"Layout exported successfully to {output_path}")
+    else:
+        print(f"Failed to export layout to {output_path}, result code: {result}")
+    end_time = time.time()
+    print(f"执行时间: {end_time - start_time} 秒")
 
 
 if __name__ == '__main__':
@@ -680,11 +757,20 @@ if __name__ == '__main__':
     canvas.setDestinationCrs(QgsCoordinateReferenceSystem("EPSG:3857"))
     canvas.setExtent(extent)
 
-    project.layoutManager().addLayout(add_print_layout(project, canvas))
+    # Create and add print layout
+    layout = add_print_layout(project, canvas)
+    add_right_side_label(layout)
+    project.layoutManager().addLayout(layout)
     # canvas.extentsChanged.connect(lambda: update_layout_extent("位置图"))
+
+    # Export layout to image
+    output_image_path = f"{GEOJSON_PREFIX}/demo15.png"
+    export_layout_to_image(layout, output_image_path)
 
     # Save project
     project.write(f"{GEOJSON_PREFIX}/demo15.qgz")
 
     # Exit QGIS application
     qgis.exitQgis()
+
+
