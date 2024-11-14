@@ -1,6 +1,7 @@
 import base64
 import os
 
+from qgis._core import QgsLegendModel, QgsMapLayerLegendUtils, QgsLegendRenderer
 from qgis.gui import QgsMapCanvas
 from qgis.core import (
     Qgis,
@@ -442,14 +443,22 @@ def customize_legend(legend, legend_title):
     # Control which layers are included in the legend
     legend.setAutoUpdateModel(False)  # Disable auto-update to manually control layers
     # Remove all existing layers from the legend
-    legend_model = legend.model()
+
+    legend_model: QgsLegendModel = legend.model()
+
+    # Find the legend item and update its symbol
+    for i in range(legend_model.rowCount()):
+        qmodel_index = legend_model.index(i, 0)
+        legend_item = qmodel_index.data()
+        print(f"legend_item:{legend_item}")
+
+        # Get properties of the legend item
+        properties = legend_model.data(qmodel_index, QtCore.Qt.DisplayRole)
+        print(f"Properties: {properties}")
+
+
     while legend_model.rowCount() > 0:
         legend_model.removeRow(0)
-    # legend.cleanup()  # Clear existing legend items
-    legend_settings = legend.legendSettings()
-    print(legend_settings)
-    print(legend_settings.evaluateItemText("中文", legend.createExpressionContext()))
-
     # Add specific layers to the legend, excluding BaseTile and MainTile
     project = QgsProject.instance()
     layers = project.mapLayers().values()
@@ -457,14 +466,32 @@ def customize_legend(legend, legend_title):
         if layer.name() not in ["BaseTile", "MainTile"]:
             legend_model.rootGroup().addLayer(layer)
 
+    # QgsSvgMarkerSymbolLayer()
     # Customize the appearance of legend items
     for layer in layers:
         if layer.name() not in ["BaseTile", "MainTile"]:
+            # for tr in legend_model.rootGroup().children():
+            #     print(f"patchShape: {tr.patchShape()}")
+            #     print(f"patchSize: {tr.patchSize()}")
+            #     print("customProperties:", tr.customProperties())
+            #     print(f"num {len(tr.children())}  childrens: {tr.children()}")
+            #     # if tr.name() == layer_name:
+            #     #     tr.setCustomProperty("legend/title-label", "new name in legend")
             layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
-            if layer_tree_layer:
-                for i in range(len(layer_tree_layer.children())):
-                    # Customize each legend item if needed
-                    pass
+            layer_renderer = layer.renderer()
+
+            # QgsLegendRenderer.setNodeLegendStyle(layer_tree_layer, QgsComposerLegendStyle.Group)
+
+            node_order = QgsMapLayerLegendUtils.legendNodeOrder(layer_tree_layer)
+            print(f"{layer.name()} node_order: {node_order}")
+            node_symbol_size = QgsMapLayerLegendUtils.legendNodeSymbolSize(layer_tree_layer,0)
+            print(f"node_symbol_size: {node_symbol_size}")
+            custom_symbol = QgsMapLayerLegendUtils.legendNodeCustomSymbol(layer_tree_layer, 0)
+            print(f"type: {type(custom_symbol)}, custom_symbol: {custom_symbol}")
+            # if layer_tree_layer:
+            #     for i in range(len(layer_tree_layer.children())):
+            #         # Customize each legend item if needed
+            #         pass
 
 def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout = QgsPrintLayout(project)
