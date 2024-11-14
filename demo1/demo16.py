@@ -1,10 +1,13 @@
 import base64
 import os
 
-from qgis._core import QgsLegendModel, QgsMapLayerLegendUtils, QgsLegendRenderer
+from qgis._core import QgsLayerTreeModelLegendNode
 from qgis.gui import QgsMapCanvas
 from qgis.core import (
     Qgis,
+    QgsFeatureRenderer,
+    QgsMapLayerLegendUtils,
+    QgsLegendModel,
     QgsApplication,
     QgsProject,
     QgsField,
@@ -71,11 +74,15 @@ from utils.unit_util import UnitUtil
 from utils.file_util import FileUtil
 from utils.qt_font import QtFontUtil
 
-LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
-GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
-# ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
-ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
+# LAYOUT_DIR = "D:/iProject/pypath/qgis-x/common/layout"
+# GEOJSON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
+# # ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
+# ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/output/projects'
 
+LAYOUT_DIR = "/lyndon/iProject/pypath/qgis-x/common/layout"
+GEOJSON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/output/projects'
+# ICON_PREFIX = 'D:/iProject/pypath/qgis-x/common/icon'
+ICON_PREFIX = '/lyndon/iProject/pypath/qgis-x/common/output/projects'
 
 def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: list[tuple[float, float]],
                point_size: int = 5, icon_base64: str = "") -> QgsVectorLayer:
@@ -442,6 +449,9 @@ def customize_legend(legend, legend_title):
 
     # Control which layers are included in the legend
     legend.setAutoUpdateModel(False)  # Disable auto-update to manually control layers
+
+
+
     # Remove all existing layers from the legend
 
     legend_model: QgsLegendModel = legend.model()
@@ -468,25 +478,32 @@ def customize_legend(legend, legend_title):
 
     # QgsSvgMarkerSymbolLayer()
     # Customize the appearance of legend items
+
     for layer in layers:
+        map_layer_legend_util = QgsMapLayerLegendUtils()
         if layer.name() not in ["BaseTile", "MainTile"]:
             # for tr in legend_model.rootGroup().children():
+            #     # tr: QgsLayerTreeLayer
             #     print(f"patchShape: {tr.patchShape()}")
             #     print(f"patchSize: {tr.patchSize()}")
             #     print("customProperties:", tr.customProperties())
             #     print(f"num {len(tr.children())}  childrens: {tr.children()}")
-            #     # if tr.name() == layer_name:
-            #     #     tr.setCustomProperty("legend/title-label", "new name in legend")
+                # if tr.name() == layer_name:
+                #     tr.setCustomProperty("legend/title-label", "new name in legend")
             layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
-            layer_renderer = layer.renderer()
+            layer_renderer: QgsFeatureRenderer = layer.renderer()
+            # layer_renderer.symbols(context???)
+            layer_tree_model_legend_node_list: list[QgsLayerTreeModelLegendNode] = layer_renderer.createLegendNodes(layer_tree_layer)
+            map_layer_legend_util.applyLayerNodeProperties(layer_tree_layer, layer_tree_model_legend_node_list)
+
 
             # QgsLegendRenderer.setNodeLegendStyle(layer_tree_layer, QgsComposerLegendStyle.Group)
 
-            node_order = QgsMapLayerLegendUtils.legendNodeOrder(layer_tree_layer)
+            node_order = map_layer_legend_util.legendNodeOrder(layer_tree_layer)
             print(f"{layer.name()} node_order: {node_order}")
-            node_symbol_size = QgsMapLayerLegendUtils.legendNodeSymbolSize(layer_tree_layer,0)
+            node_symbol_size = map_layer_legend_util.legendNodeSymbolSize(layer_tree_layer,0)
             print(f"node_symbol_size: {node_symbol_size}")
-            custom_symbol = QgsMapLayerLegendUtils.legendNodeCustomSymbol(layer_tree_layer, 0)
+            custom_symbol = map_layer_legend_util.legendNodeCustomSymbol(layer_tree_layer, 0)
             print(f"type: {type(custom_symbol)}, custom_symbol: {custom_symbol}")
             # if layer_tree_layer:
             #     for i in range(len(layer_tree_layer.children())):
@@ -577,6 +594,7 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout.addLayoutItem(title)
 
     # 添加图例
+    layout.renderContext()
     legend = QgsLayoutItemLegend(layout)
     # legend.setTitle("图例")
     # legend.setAutoUpdateModel(True)
@@ -727,12 +745,12 @@ def export_layout_to_image(layout, output_path):
         return
 
     print(f"Starting export image to {output_path}...")
-    result = exporter.exportToImage(output_path, settings)
-
-    if result == QgsLayoutExporter.Success:
-        print(f"Layout exported successfully to {output_path}")
-    else:
-        print(f"Failed to export layout to {output_path}, result code: {result}")
+    # result = exporter.exportToImage(output_path, settings)
+    #
+    # if result == QgsLayoutExporter.Success:
+    #     print(f"Layout exported successfully to {output_path}")
+    # else:
+    #     print(f"Failed to export layout to {output_path}, result code: {result}")
     end_time = time.time()
     print(f"执行时间: {end_time - start_time} 秒")
 
