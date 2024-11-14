@@ -62,7 +62,5 @@ class FileUtil:
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
-            else:
-                raise FileOperationError(f"文件 {file_path} 不存在！")
         except Exception as e:
             raise FileOperationError(f"删除文件时出错：{e}")
