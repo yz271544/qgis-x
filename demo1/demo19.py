@@ -149,20 +149,9 @@ def add_points(layer_name: str, icon_name: str, point_name_prefix: str, points: 
         with open(icon_path, 'wb') as icon_file:
             icon_file.write(base64.b64decode(icon_base64))
 
-    # raster_layer = QgsRasterMarkerSymbolLayer(icon_path)
-    # raster_layer.setSize(point_size)
-    # # symbol = QgsMarkerSymbol()
-    # symbol = QgsSymbol.defaultSymbol(QgsWkbTypes.PointGeometry)
-    # symbol.changeSymbolLayer(0, raster_layer)
-    # # pointLayer.renderer().setSymbol(symbol)  # 直接设置渲染器的符号
-    # renderer = QgsSingleSymbolRenderer(symbol)
-    # pointLayer.setRenderer(renderer)
 
     label_style = Dict()
     label_font_color = "#0000ff"
-    # if len(style_list) > 0 and "fontStyle" in style_list[0] and "fontColor" in style_list[0]["fontStyle"]:
-    #     label_font_color, label_font_opacity = ColorTransformUtil.str_rgba_to_hex(
-    #         style_list[0]["fontStyle"]["fontColor"])
     label_style.font_family = "SimSun"
     label_style.font_size = 10
     label_style.font_color = label_font_color
@@ -413,21 +402,6 @@ def add_arrow(layer_name):
     arrow_layer.setHeadThickness(3)
     # 设置箭头颜色（这里设置为蓝色）
     arrow_layer.setColor(QtGui.QColor(0, 0, 255))
-    # # 创建一个线符号对象
-    # line_symbol = QgsLineSymbol()
-    # # 将箭头符号层添加到线符号中
-    # line_symbol.appendSymbolLayer(arrow_layer)
-    # # 创建单符号渲染器并应用线符号
-    # renderer = QgsSingleSymbolRenderer(line_symbol)
-    # # 将渲染器设置到图层上
-    # arrow_layer.setRenderer(renderer)
-
-    # # 创建一个属性对象关联到对应的字段
-    # size_property = QgsProperty.fromField("size_field")
-    # # 将箭头头部长度属性设置为基于数据字段驱动
-    # arrow_layer.setHeadLength(size_property)
-    # 更新渲染器（因为样式相关属性改变了）
-    # arrow_layer.triggerRepaint()
     return arrow_layer
 
 def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], radius: float, percent: tuple[float, float, float],
@@ -517,153 +491,65 @@ def add_circle_key_areas(layer_name: str, center_point: tuple[float, float], rad
     return circleLayer
 
 
-def customize_legend(legend, legend_title):
+def customize_legend(project, legend, legend_title):
     # Set the legend title
     legend.setTitle(legend_title)
 
     # Control which layers are included in the legend
     legend.setAutoUpdateModel(False)  # Disable auto-update to manually control layers
-    # Remove all existing layers from the legend
 
     legend_model: QgsLegendModel = legend.model()
+    root_group = legend_model.rootGroup()
+    root_group.clear()
 
-    # Find the legend item and update its symbol
-    for i in range(legend_model.rowCount()):
-        qmodel_index = legend_model.index(i, 0)
-        legend_item = qmodel_index.data()
-        print(f"legend_item:{legend_item}")
-
-        # Get properties of the legend item
-        properties = legend_model.data(qmodel_index, QtCore.Qt.DisplayRole)
-        print(f"Properties: {properties}")
-
-
-    while legend_model.rowCount() > 0:
-        legend_model.removeRow(0)
-    # Add specific layers to the legend, excluding BaseTile and MainTile
-    project = QgsProject.instance()
     layers = project.mapLayers().values()
-    for layer in layers:
-        if layer.name() not in ["BaseTile", "MainTile"]:
-            legend_model.rootGroup().addLayer(layer)
-
-    # QgsSvgMarkerSymbolLayer()
     # Customize the appearance of legend items
-    for layer in layers:
-        if layer.name() not in ["BaseTile", "MainTile"]:
-            print("layer:", layer.name())
-            print(f"layer.featureCount:{layer.featureCount()}")
-
-            layer_custom_type = ""
-            # 获取字段索引 (name)
-            field_name = "type"
-            field_index = layer.fields().indexFromName(field_name)
-            # 检查字段是否有效
-            if field_index == -1:
-                print(f"Field {field_name} not found in layer {layer.name()}")
+    for map_layer in layers:
+        if map_layer.name() not in ["BaseTile", "MainTile"]:
+            # root_group.addLayer(vector_layer)
+            layer_custom_type = get_type(map_layer)
+            if layer_custom_type == "":
                 continue
-            else:
-                # 获取字段值
-                for feature in layer.getFeatures():
-                    layer_custom_type = feature[field_index]
-                    print(f"Feature ID: {feature.id()}, {field_name}: {layer_custom_type}")
-            # for feat in layer.getFeatures():
-            #     print(f"feat.attributes:{feat.attributes()}")
-            layer_fields = layer.fields()
-            print(f"layer_fields.names: {layer_fields.names()}, layer_custom_type:{layer_custom_type}")
-
-
-            layer_renderer = layer.renderer()
-            legend_keys = layer_renderer.legendKeys()
-            print(f"legendKeys:{legend_keys}, type: {type(legend_keys)}")
-            print(f"layer_renderer.legendSymbolItemsCheckable:{layer_renderer.legendSymbolItemsCheckable()}")
-            for legend_key in legend_keys:
-                print(f"layer_renderer.legendSymbolItemChecked: {legend_key} ---> {layer_renderer.legendSymbolItemChecked(legend_key)}")
+            layer_renderer = map_layer.renderer()
             legend_symbol_items = layer_renderer.legendSymbolItems()
-            for tr in legend_model.rootGroup().children():
-                # print(f"patchShape: {tr.patchShape()}")
-                # print(f"patchSize: {tr.patchSize()}")
-                # print("customProperties:", tr.customProperties())
-                # print(f"num {len(tr.children())}  childrens: {tr.children()}")
-                if layer_custom_type == "point":
+            for tr in root_group.children():
+                if layer_custom_type == "point" and tr.layerId() == map_layer.id():
                     # custom symbol
-                    symbol_legend_node_list = []
                     for legend_symbol_item in legend_symbol_items:
                         symbol: QgsMarkerSymbol = legend_symbol_item.symbol()
-                        symbol_type_name = symbol.symbolTypeToString(symbol.type())
-                        # symbol = symbol_legend_node.symbol()
-                        print(f"symbol_type_name:{symbol_type_name}, symbol_legend_node.symbol.dump: {symbol.dump()}")
                         symbol_layers = symbol.symbolLayers()
-                        print(f"symbol_legend_node.symbol.symbolLayers: {symbol_layers}")
-                        # print(f"symbol.symbolTypeToString:{symbol.symbolTypeToString(symbol)}")
                         filtered_symbol_layers = []
                         for symbol_layer in symbol_layers:
-                            # print(f"symbol_layer type: {type(symbol_layer)}")
-                            # print(f"symbol_layer.class: {symbol_layer.__class__()}")
-                            # print(f"symbol_layer.layerType(): {symbol_layer.layerType()}")
-                            # print(f"symbol_layer.id: {symbol_layer.id()}")
-                            # print(f"symbol_layer.flags: {symbol_layer.flags()}")
-                            # print(f"symbol_layer.properties: {symbol_layer.properties()}")
                             if symbol_layer.layerType() != "FontMarker":
                                 filtered_symbol_layers.append(symbol_layer.clone())
                         filtered_marker_symbol = QgsMarkerSymbol(filtered_symbol_layers)
-                        check_symbol_layers = filtered_marker_symbol.symbolLayers()
-                        print("000")
-                        for check_symbol_layer in check_symbol_layers:
-                            print(f"check_symbol_layer.layerType(): {check_symbol_layer.layerType()}")
-                        print("001")
                         legend_symbol_item.setSymbol(filtered_marker_symbol)
-                        print("111")
                         symbol_legend_node = QgsSymbolLegendNode(tr, legend_symbol_item)
                         symbol_legend_node.setCustomSymbol(filtered_marker_symbol)
-                        print("222")
-                        symbol_legend_node_list.append(symbol_legend_node)
-                        print("333")
                         QgsMapLayerLegendUtils.setLegendNodeCustomSymbol(tr, 0, filtered_marker_symbol)
-                        # legend_nodes = QgsMapLayerLegendUtils.legendNodeOrder(tr)
-                        # for index, node in enumerate(legend_nodes):
-                        #     print(f"Node at index {layer.name()} {index}: {node}")
-                        #     # Use the index as the originalIndex
-                        #     originalIndex = index
-                        #     # Now you can use originalIndex to access properties of the node
-                        #     has_label = QgsMapLayerLegendUtils.hasLegendNodeUserLabel(tr, originalIndex)
-                        #     QgsMapLayerLegendUtils.setLegendNodeCustomSymbol(tr, originalIndex, filtered_marker_symbol)
-                        #     print(f"Node at index {originalIndex} has user label: {has_label}")
-                    QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
-                    # legend_nodes = QgsMapLayerLegendUtils.legendNodeOrder(tr)
-                    # print(f"symbol_legend_node.patchShape: {symbol_legend_node.patchShape()}")
-                        # print(f"symbol_legend_node.customSymbol: {symbol_legend_node.customSymbol()}")
-                        # print(f"symbol_legend_node.iconSize: {symbol_legend_node.iconSize()}")
-                        # print(f"symbol_legend_node.textOnSymbolLabel: {symbol_legend_node.textOnSymbolLabel()}")
-                        # print(f"symbol_legend_node.textOnSymbolTextFormat: {symbol_legend_node.textOnSymbolTextFormat()}")
-                        # print(f"symbol_legend_node.isScaleOK: {symbol_legend_node.isScaleOK(1)}")
-                        # print(f"symbol_legend_node.flags: {symbol_legend_node.flags()}")
-                        # print(f"symbol_legend_node.invalidateMapBasedData: {symbol_legend_node.invalidateMapBasedData()}")
-                        #     # if tr.name() == layer_name:
-                        #     #     tr.setCustomProperty("legend/title-label", "new name in legend")
-                else:
-                    symbol_legend_node_list = [QgsSymbolLegendNode(tr, legend_symbol_item) for legend_symbol_item in legend_symbol_items]
-                    QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
+            root_group.addLayer(map_layer)
+    legend.refresh()
 
+def get_type(layer) -> str:
+    layer_custom_type = ""
+    # 获取字段索引 (name)
+    field_name = "type"
+    field_index = layer.fields().indexFromName(field_name)
+    # 检查字段是否有效
+    if field_index == -1:
+        print(f"Field {field_name} not found in layer {layer.name()}")
+        return layer_custom_type
+    else:
+        # 获取字段值
+        for feature in layer.getFeatures():
+            layer_custom_type = feature[field_index]
+            print(f"Feature ID: {feature.id()}, {field_name}: {layer_custom_type}")
+        return layer_custom_type
 
-
-
-            # QgsLegendRenderer.setNodeLegendStyle(layer_tree_layer, QgsComposerLegendStyle.Group)
-            # layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
-            # node_order = QgsMapLayerLegendUtils.legendNodeOrder(layer_tree_layer)
-            # print(f"{layer.name()} node_order: {node_order}")
-            # node_symbol_size = QgsMapLayerLegendUtils.legendNodeSymbolSize(layer_tree_layer,0)
-            # print(f"node_symbol_size: {node_symbol_size}")
-            # custom_symbol = QgsMapLayerLegendUtils.legendNodeCustomSymbol(layer_tree_layer, 0)
-            # print(f"type: {type(custom_symbol)}, custom_symbol: {custom_symbol}")
-            # if layer_tree_layer:
-            #     for i in range(len(layer_tree_layer.children())):
-            #         # Customize each legend item if needed
-            #         pass
 
 def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout = QgsPrintLayout(project)
-    layout.setName("位置图")
+    layout.setName("local-image")
     layout.setUnits(QgsUnitTypes.LayoutMillimeters)
     layout.initializeDefaults()
 
@@ -707,64 +593,23 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     main_canvas_extent = canvas.extent()
     map_item.setExtent(main_canvas_extent)
 
-
-    # map_item.atlasScalingMode()
-    # map_item.setPos(QtCore.QPointF(0, 0))
     layout.addLayoutItem(map_item)
 
     # # 添加标题
     title = QgsLayoutItemLabel(layout)
-    title.setText("郑州二期警务部署图")
-
-    # Use QgsTextFormat to set the font
-    # text_format = QgsTextFormat()
-    # text_format.allowHtmlFormatting()
-    # font = text_format.font()
-    # # font = QtGui.QFont("黑体", 30)
-    # # font.setFamily("SimSun")
-    # # font.setPixelSize(30)
-    # font.setFamily("黑体")
-    # # font.setPointSize(30)
-    # text_format.setFont(font)
-    # text_format.setForcedBold(True)
+    title.setText("map title")
 
     text_format = QtFontUtil.create_font("黑体", 30, "#000000", True, False, Qgis.TextOrientation.Horizontal)
 
     title.setVAlign(QtCore.Qt.AlignBottom)  # 垂直居中
     title.setHAlign(QtCore.Qt.AlignHCenter)  # 水平居中
     title.adjustSizeToText()
-    # text_format.setSizeUnit(Qgis.RenderUnit.Points)
-    # text_format.setSize(30)
-    # text_format.setNamedStyle("font-size: 30px")
-    # text_css = text_format.asCSS()
-    # print(f"text_css: {text_css}")
     title.setTextFormat(text_format)
-    # title.setFont(font)
     title.attemptSetSceneRect(QtCore.QRectF(left_margin, 0, map_width, top_margin - 10))
-    # title.setPos(QtCore.QPointF(50, 50))
     layout.addLayoutItem(title)
 
-    # 添加图例
-    legend = QgsLayoutItemLegend(layout)
-    # legend.setTitle("图例")
-    # legend.setAutoUpdateModel(True)
-    customize_legend(legend, "图例")
-    legend_width = 40
-    legend_height = 80
-    legend_x = left_margin + map_width - legend_width - 0.5
-    legend_y = top_margin + map_height - legend_height - 0.5
-    legend.setReferencePoint(QgsLayoutItem.ReferencePoint.LowerRight)
-    legend.attemptSetSceneRect(QtCore.QRectF(legend_x, legend_y, 40, 80))
-    legend_fixed_size = QgsLayoutSize(legend_width, legend_height, QgsUnitTypes.LayoutMillimeters)
-    legend.setFixedSize(legend_fixed_size)
-    # legend.setPos(QtCore.QPointF(120, 10))
-    layout.addLayoutItem(legend)
-
-
     # Add remarks box background
-    remarks_text = "备注: 这里填写备注信息"
-    # remarks_format = QgsTextFormat()
-    # remarks_format.setFont(QtGui.QFont("SimSun", 12))
+    remarks_text = "remark: remark message"
 
     remarks_format = QtFontUtil.create_font("SimSun", 12, "#000000",False, False, Qgis.TextOrientation.Horizontal)
 
@@ -796,22 +641,28 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     group = QgsLayoutItemGroup(layout)
     group.addItem(remarks_bg)
     group.addItem(remarks)
-    # group.setReferencePoint(QgsLayoutItem.ReferencePoint.LowerLeft)
-    # group.attemptSetSceneRect(QtCore.QRectF(remarks_x, remarks_y, remarks_width, remarks_height))
     layout.addLayoutItem(group)
 
-    layout.refresh()
-    #
-    # # 保存为.qpt文件
-    # qpt_file_path = f"{GEOJSON_PREFIX}/jingwei3.qpt"
-    # context = QgsReadWriteContext()
-    # layout.saveAsTemplate(qpt_file_path, context)
+    # Add right side label
+    add_right_side_label(layout)
+    project.layoutManager().addLayout(layout)
 
-    # 或者保存为.qpt模板文件
-    # doc = QtXml.QDomDocument()
-    # layout.saveAsTemplate(doc)
-    # with open('D:/iProject/pypath/qgis-x/output/projects/demo_layout.qpt', 'w') as f:
-    #     f.write(doc.toString())
+    # 添加自定义图例
+    legend = QgsLayoutItemLegend(layout)
+    customize_legend(project, legend, "legend")
+    legend_width = 40
+    legend_height = 80
+    legend_x = left_margin + map_width - legend_width - 0.5
+    legend_y = top_margin + map_height - legend_height - 0.5
+    legend.setReferencePoint(QgsLayoutItem.ReferencePoint.LowerRight)
+    legend.attemptSetSceneRect(QtCore.QRectF(legend_x, legend_y, 40, 80))
+    legend_fixed_size = QgsLayoutSize(legend_width, legend_height, QgsUnitTypes.LayoutMillimeters)
+    legend.setFixedSize(legend_fixed_size)
+    layout.addLayoutItem(legend)
+
+    # Refresh layout to apply changes
+    layout.updateSettings()
+    layout.refresh()
 
     return layout
 
@@ -819,28 +670,12 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
 def add_right_side_label(layout):
     # Create a label item
     label = QgsLayoutItemLabel(layout)
-    label.setText("索引标题")
-
-    # Set the font properties
-    # text_format = QgsTextFormat()
-    # font = QtGui.QFont("SimHei", 14)
-    # text_format.setFont(font)
-    # text_format.setColor(QtGui.QColor("black"))
+    label.setText("index title")
 
     text_format = QtFontUtil.create_font("黑体", 14, "#000000", False, False, Qgis.TextOrientation.Vertical, 3.0)
 
     label.setTextFormat(text_format)
     label.setVAlign(QtCore.Qt.AlignVCenter)  # 垂直居中
-    # text_format = QgsTextFormat()
-    # text_format.setOrientation(Qgis.TextOrientation.Vertical)
-    # font = text_format.font()
-    # font.setFamily("黑体")
-    # font.setPointSize(14)
-    # font.setLetterSpacing(QtGui.QFont.AbsoluteSpacing, 3)
-    # text_format.setFont(font)
-    # label.setTextFormat(text_format)
-    # Set the label to vertical text
-    # label.setRotation(90)
 
     # Position the label
     label_x = layout.pageCollection().page(0).pageSize().width() - 5  # 0.5 cm from the right border
@@ -878,14 +713,14 @@ def update_layout_extent(layout_name):
 
 def export_layout_to_image(layout, output_path):
     exporter = QgsLayoutExporter(layout)
-    settings = QgsLayoutExporter.ImageExportSettings()
+    settings = exporter.ImageExportSettings()
     settings.dpi = 300
     start_time = time.time()
 
     try:
         print(f"delete file {output_path}")
         FileUtil.delete_file(output_path)
-        time.sleep(0.5)  # Add a small delay to ensure the file is deleted
+        time.sleep(0.5)
     except Exception as e:
         print(f"delete file {output_path} failed: {e}")
         pass
@@ -902,7 +737,67 @@ def export_layout_to_image(layout, output_path):
     else:
         print(f"Failed to export layout to {output_path}, result code: {result}")
     end_time = time.time()
+    print(f"execution time: {end_time - start_time} seconds")
+
+
+def export_layout_to_pdf(layout, output_path):
+    exporter = QgsLayoutExporter(layout)
+    settings = exporter.PdfExportSettings()
+    settings.dpi = 300
+    start_time = time.time()
+
+    try:
+        print(f"delete file {output_path}")
+        FileUtil.delete_file(output_path)
+        time.sleep(0.5)  # Add a small delay to ensure the file is deleted
+    except Exception as e:
+        print(f"delete file {output_path} failed: {e}")
+        pass
+
+    if os.path.exists(output_path):
+        print(f"delete file {output_path} failed")
+        return
+
+    print(f"Starting export pdf to {output_path}...")
+    result = exporter.exportToPdf(output_path, settings)
+
+    if result == QgsLayoutExporter.Success:
+        print(f"Layout exported successfully to {output_path}")
+    else:
+        print(f"Failed to export layout to {output_path}, result code: {result}")
+    end_time = time.time()
     print(f"执行时间: {end_time - start_time} 秒")
+
+
+
+def export_layout_to_svg(layout, output_path):
+    exporter = QgsLayoutExporter(layout)
+    settings = exporter.SvgExportSettings()
+    settings.dpi = 300
+    start_time = time.time()
+
+    try:
+        print(f"delete file {output_path}")
+        FileUtil.delete_file(output_path)
+        time.sleep(0.5)  # Add a small delay to ensure the file is deleted
+    except Exception as e:
+        print(f"delete file {output_path} failed: {e}")
+        pass
+
+    if os.path.exists(output_path):
+        print(f"delete file {output_path} failed")
+        return
+
+    print(f"Starting export pdf to {output_path}...")
+    result = exporter.exportToSvg(output_path, settings)
+
+    if result == QgsLayoutExporter.Success:
+        print(f"Layout exported successfully to {output_path}")
+    else:
+        print(f"Failed to export layout to {output_path}, result code: {result}")
+    end_time = time.time()
+    print(f"执行时间: {end_time - start_time} 秒")
+
 
 
 if __name__ == '__main__':
@@ -911,14 +806,6 @@ if __name__ == '__main__':
 
     # Create project instance
     project = QgsProject.instance()
-
-    # Create map settings and set the extent
-    # map_settings = QgsMapSettings()
-    # map_extent = QgsRectangle(111.47, 40.72, 111.49, 40.73)
-    # map_settings.setExtent(map_extent)
-
-    # qpt_file_path = f"{GEOJSON_PREFIX}/jingwei1.qpt"
-    # load_qpt_template(project, qpt_file_path)
 
     # Load tile layers
     base_tile_url = "type=xyz&url=http://172.31.100.34:8090/gis/hhht/{z}/{x}/{y}.png"
@@ -937,15 +824,9 @@ if __name__ == '__main__':
     project.addMapLayer(pointLayer)
 
     # Add line layer to project
-    # lineLayer = add_line("应急道路", [
-    #     [(111.4857822, 40.726082), (111.4866153, 40.7256001), (111.4882815, 40.726957), (111.4901084, 40.7284965),
-    #      (111.4901084, 40.7284965)]], "#e77148", 2, [6, 8], ["#ff4040", "#00cd52"], [0.4, 0.4])
     lineLayer = add_line("应急道路", [
         [(111.4857822, 40.726082), (111.4866153, 40.7256001), (111.4882815, 40.726957), (111.4901084, 40.7284965),
          (111.4901084, 40.7284965)]], "#e77148", 2, [8], ["#00cd52"], [0.4])
-    # lineLayer = add_line("应急道路", [
-    #     [(111.4857822, 40.726082), (111.4866153, 40.7256001), (111.4882815, 40.726957), (111.4901084, 40.7284965),
-    #      (111.4901084, 40.7284965)]], "#e77148", 2, None, None, None)
     project.addMapLayer(lineLayer)
 
     # Add polygon layer to project
@@ -953,9 +834,6 @@ if __name__ == '__main__':
                                                (111.4869734, 40.7262813), (111.4855264, 40.7272782),
                                                (111.4855264, 40.7272782), (111.4839918, 40.7258937)]]], "#e77148")
     project.addMapLayer(polygonLayer)
-
-    # cir1Layer = add_circle("cir1", (111.477486, 40.724372), 41, "#2f99f3", 0.6,72)
-    # project.addMapLayer(cir1Layer)
 
     cir1Layer = add_circle_key_areas("防范区域", (111.477486, 40.724372), 41, (40, 30, 30),
                                      ("#ff4040", "#00cd52", "#2f99f3"), (0.4, 0.4, 0.4), 72)
@@ -986,16 +864,19 @@ if __name__ == '__main__':
 
     # Create and add print layout
     layout = add_print_layout(project, canvas)
-    add_right_side_label(layout)
-    project.layoutManager().addLayout(layout)
-    # canvas.extentsChanged.connect(lambda: update_layout_extent("位置图"))
-
-    # Export layout to image
-    output_image_path = f"{GEOJSON_PREFIX}/demo16.png"
-    export_layout_to_image(layout, output_image_path)
 
     # Save project
-    project.write(f"{GEOJSON_PREFIX}/demo16.qgz")
+    project.write(f"{GEOJSON_PREFIX}/demo19.qgz")
+
+    # Export layout to image
+    output_image_path = f"{GEOJSON_PREFIX}/demo19.png"
+    export_layout_to_image(layout, output_image_path)
+
+    output_pdf_path = f"{GEOJSON_PREFIX}/demo19.pdf"
+    export_layout_to_pdf(layout, output_pdf_path)
+
+    output_svg_path = f"{GEOJSON_PREFIX}/demo19.svg"
+    export_layout_to_svg(layout, output_svg_path)
 
     # Exit QGIS application
     qgis.exitQgis()

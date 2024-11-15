@@ -526,26 +526,32 @@ def customize_legend(legend, legend_title):
     # Remove all existing layers from the legend
 
     legend_model: QgsLegendModel = legend.model()
-
+    root_group = legend_model.rootGroup()
+    layers = root_group.layerOrder()
+    # for layer_order in layer_order_list:
+    #     print(f"layer_order:{layer_order}")
     # Find the legend item and update its symbol
-    for i in range(legend_model.rowCount()):
-        qmodel_index = legend_model.index(i, 0)
-        legend_item = qmodel_index.data()
-        print(f"legend_item:{legend_item}")
+    # for i in range(legend_model.rowCount()):
+    #     qmodel_index = legend_model.index(i, 0)
+    #     legend_item = qmodel_index.data()
+    #     print(f"legend_item:{legend_item}")
+    #
+    #     # Get properties of the legend item
+    #     properties = legend_model.data(qmodel_index, QtCore.Qt.DisplayRole)
+    #     print(f"Properties: {properties}")
 
-        # Get properties of the legend item
-        properties = legend_model.data(qmodel_index, QtCore.Qt.DisplayRole)
-        print(f"Properties: {properties}")
 
 
-    while legend_model.rowCount() > 0:
-        legend_model.removeRow(0)
+
+    # while legend_model.rowCount() > 0:
+    #     legend_model.removeRow(0)
     # Add specific layers to the legend, excluding BaseTile and MainTile
-    project = QgsProject.instance()
-    layers = project.mapLayers().values()
-    for layer in layers:
-        if layer.name() not in ["BaseTile", "MainTile"]:
-            legend_model.rootGroup().addLayer(layer)
+    # project = QgsProject.instance()
+    # layers = project.mapLayers().values()
+    # for layer in layers:
+    #     print(f"layer:{layer}")
+    #     if layer.name() not in ["BaseTile", "MainTile"]:
+    #         legend_model.rootGroup().addLayer(layer)
 
     # QgsSvgMarkerSymbolLayer()
     # Customize the appearance of legend items
@@ -572,7 +578,6 @@ def customize_legend(legend, legend_title):
             layer_fields = layer.fields()
             print(f"layer_fields.names: {layer_fields.names()}, layer_custom_type:{layer_custom_type}")
 
-
             layer_renderer = layer.renderer()
             legend_keys = layer_renderer.legendKeys()
             print(f"legendKeys:{legend_keys}, type: {type(legend_keys)}")
@@ -581,13 +586,20 @@ def customize_legend(legend, legend_title):
                 print(f"layer_renderer.legendSymbolItemChecked: {legend_key} ---> {layer_renderer.legendSymbolItemChecked(legend_key)}")
             legend_symbol_items = layer_renderer.legendSymbolItems()
             for tr in legend_model.rootGroup().children():
-                # print(f"patchShape: {tr.patchShape()}")
-                # print(f"patchSize: {tr.patchSize()}")
-                # print("customProperties:", tr.customProperties())
-                # print(f"num {len(tr.children())}  childrens: {tr.children()}")
-                if layer_custom_type == "point":
+                print(f"tr.patchShape: {tr.patchShape()}")
+                print(f"tr.patchSize: {tr.patchSize()}")
+                print("tr.customProperties:", tr.customProperties())
+                print(f"num {len(tr.children())} tr.childrens: {tr.children()}")
+                legend_node_order_list = QgsMapLayerLegendUtils.legendNodeOrder(tr)
+                print(f"layer_legend_layer name: {layer.name()}, legend_node_order_list:{legend_node_order_list}")
+                # for index, node in enumerate(legend_nodes):
+                #     print(f"Node at index {layer.name()} {index}: {node}")
+                #     # Use the index as the originalIndex
+                #     has_label = QgsMapLayerLegendUtils.hasLegendNodeUserLabel(tr, index)
+                #     print(f"Node at index {index} has user label: {has_label}")
+
+                if layer_custom_type == "point" and tr.layerId() == layer.id():
                     # custom symbol
-                    symbol_legend_node_list = []
                     for legend_symbol_item in legend_symbol_items:
                         symbol: QgsMarkerSymbol = legend_symbol_item.symbol()
                         symbol_type_name = symbol.symbolTypeToString(symbol.type())
@@ -598,68 +610,15 @@ def customize_legend(legend, legend_title):
                         # print(f"symbol.symbolTypeToString:{symbol.symbolTypeToString(symbol)}")
                         filtered_symbol_layers = []
                         for symbol_layer in symbol_layers:
-                            # print(f"symbol_layer type: {type(symbol_layer)}")
-                            # print(f"symbol_layer.class: {symbol_layer.__class__()}")
-                            # print(f"symbol_layer.layerType(): {symbol_layer.layerType()}")
-                            # print(f"symbol_layer.id: {symbol_layer.id()}")
-                            # print(f"symbol_layer.flags: {symbol_layer.flags()}")
-                            # print(f"symbol_layer.properties: {symbol_layer.properties()}")
                             if symbol_layer.layerType() != "FontMarker":
                                 filtered_symbol_layers.append(symbol_layer.clone())
                         filtered_marker_symbol = QgsMarkerSymbol(filtered_symbol_layers)
-                        check_symbol_layers = filtered_marker_symbol.symbolLayers()
-                        print("000")
-                        for check_symbol_layer in check_symbol_layers:
-                            print(f"check_symbol_layer.layerType(): {check_symbol_layer.layerType()}")
-                        print("001")
                         legend_symbol_item.setSymbol(filtered_marker_symbol)
-                        print("111")
                         symbol_legend_node = QgsSymbolLegendNode(tr, legend_symbol_item)
                         symbol_legend_node.setCustomSymbol(filtered_marker_symbol)
-                        print("222")
-                        symbol_legend_node_list.append(symbol_legend_node)
-                        print("333")
+                        print(f"tr.dump:{tr.dump()},name:{tr.name()},id:{tr.layerId()},layer_id:{layer.id()}")
                         QgsMapLayerLegendUtils.setLegendNodeCustomSymbol(tr, 0, filtered_marker_symbol)
-                        # legend_nodes = QgsMapLayerLegendUtils.legendNodeOrder(tr)
-                        # for index, node in enumerate(legend_nodes):
-                        #     print(f"Node at index {layer.name()} {index}: {node}")
-                        #     # Use the index as the originalIndex
-                        #     originalIndex = index
-                        #     # Now you can use originalIndex to access properties of the node
-                        #     has_label = QgsMapLayerLegendUtils.hasLegendNodeUserLabel(tr, originalIndex)
-                        #     QgsMapLayerLegendUtils.setLegendNodeCustomSymbol(tr, originalIndex, filtered_marker_symbol)
-                        #     print(f"Node at index {originalIndex} has user label: {has_label}")
-                    QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
-                    # legend_nodes = QgsMapLayerLegendUtils.legendNodeOrder(tr)
-                    # print(f"symbol_legend_node.patchShape: {symbol_legend_node.patchShape()}")
-                        # print(f"symbol_legend_node.customSymbol: {symbol_legend_node.customSymbol()}")
-                        # print(f"symbol_legend_node.iconSize: {symbol_legend_node.iconSize()}")
-                        # print(f"symbol_legend_node.textOnSymbolLabel: {symbol_legend_node.textOnSymbolLabel()}")
-                        # print(f"symbol_legend_node.textOnSymbolTextFormat: {symbol_legend_node.textOnSymbolTextFormat()}")
-                        # print(f"symbol_legend_node.isScaleOK: {symbol_legend_node.isScaleOK(1)}")
-                        # print(f"symbol_legend_node.flags: {symbol_legend_node.flags()}")
-                        # print(f"symbol_legend_node.invalidateMapBasedData: {symbol_legend_node.invalidateMapBasedData()}")
-                        #     # if tr.name() == layer_name:
-                        #     #     tr.setCustomProperty("legend/title-label", "new name in legend")
-                else:
-                    symbol_legend_node_list = [QgsSymbolLegendNode(tr, legend_symbol_item) for legend_symbol_item in legend_symbol_items]
-                    QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
 
-
-
-
-            # QgsLegendRenderer.setNodeLegendStyle(layer_tree_layer, QgsComposerLegendStyle.Group)
-            # layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
-            # node_order = QgsMapLayerLegendUtils.legendNodeOrder(layer_tree_layer)
-            # print(f"{layer.name()} node_order: {node_order}")
-            # node_symbol_size = QgsMapLayerLegendUtils.legendNodeSymbolSize(layer_tree_layer,0)
-            # print(f"node_symbol_size: {node_symbol_size}")
-            # custom_symbol = QgsMapLayerLegendUtils.legendNodeCustomSymbol(layer_tree_layer, 0)
-            # print(f"type: {type(custom_symbol)}, custom_symbol: {custom_symbol}")
-            # if layer_tree_layer:
-            #     for i in range(len(layer_tree_layer.children())):
-            #         # Customize each legend item if needed
-            #         pass
 
 def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout = QgsPrintLayout(project)
@@ -800,10 +759,11 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     # group.attemptSetSceneRect(QtCore.QRectF(remarks_x, remarks_y, remarks_width, remarks_height))
     layout.addLayoutItem(group)
 
+    layout.updateSettings()
     layout.refresh()
     #
-    # # 保存为.qpt文件
-    # qpt_file_path = f"{GEOJSON_PREFIX}/jingwei3.qpt"
+    # 保存为.qpt文件
+    # qpt_file_path = f"{GEOJSON_PREFIX}/demo18.qpt"
     # context = QgsReadWriteContext()
     # layout.saveAsTemplate(qpt_file_path, context)
 
@@ -878,7 +838,7 @@ def update_layout_extent(layout_name):
 
 def export_layout_to_image(layout, output_path):
     exporter = QgsLayoutExporter(layout)
-    settings = QgsLayoutExporter.ImageExportSettings()
+    settings = exporter.ImageExportSettings()
     settings.dpi = 300
     start_time = time.time()
 
@@ -990,12 +950,16 @@ if __name__ == '__main__':
     project.layoutManager().addLayout(layout)
     # canvas.extentsChanged.connect(lambda: update_layout_extent("位置图"))
 
-    # Export layout to image
-    output_image_path = f"{GEOJSON_PREFIX}/demo16.png"
-    export_layout_to_image(layout, output_image_path)
+    # # Export layout to image
+    # output_image_path = f"{GEOJSON_PREFIX}/demo18.png"
+    # export_layout_to_image(layout, output_image_path)
 
     # Save project
-    project.write(f"{GEOJSON_PREFIX}/demo16.qgz")
+    project.write(f"{GEOJSON_PREFIX}/demo18.qgz")
+
+    # Export layout to image
+    output_image_path = f"{GEOJSON_PREFIX}/demo18.png"
+    export_layout_to_image(layout, output_image_path)
 
     # Exit QGIS application
     qgis.exitQgis()

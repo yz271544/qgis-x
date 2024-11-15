@@ -574,81 +574,86 @@ def customize_legend(legend, legend_title):
 
 
             layer_renderer = layer.renderer()
-            legend_keys = layer_renderer.legendKeys()
-            print(f"legendKeys:{legend_keys}, type: {type(legend_keys)}")
-            print(f"layer_renderer.legendSymbolItemsCheckable:{layer_renderer.legendSymbolItemsCheckable()}")
-            for legend_key in legend_keys:
-                print(f"layer_renderer.legendSymbolItemChecked: {legend_key} ---> {layer_renderer.legendSymbolItemChecked(legend_key)}")
+            # legend_keys = layer_renderer.legendKeys()
+            # print(f"legendKeys:{legend_keys}, type: {type(legend_keys)}")
+            # print(f"layer_renderer.legendSymbolItemsCheckable:{layer_renderer.legendSymbolItemsCheckable()}")
+            # for legend_key in legend_keys:
+            #     print(f"layer_renderer.legendSymbolItemChecked: {legend_key} ---> {layer_renderer.legendSymbolItemChecked(legend_key)}")
             legend_symbol_items = layer_renderer.legendSymbolItems()
-            for tr in legend_model.rootGroup().children():
-                # print(f"patchShape: {tr.patchShape()}")
-                # print(f"patchSize: {tr.patchSize()}")
-                # print("customProperties:", tr.customProperties())
-                # print(f"num {len(tr.children())}  childrens: {tr.children()}")
 
-                if layer_custom_type == "point":
-                    # custom symbol
-                    symbol_legend_node_list = []
-                    for legend_symbol_item in legend_symbol_items:
-                        symbol: QgsMarkerSymbol = legend_symbol_item.symbol()
-                        symbol_type_name = symbol.symbolTypeToString(symbol.type())
-                        # symbol = symbol_legend_node.symbol()
-                        print(f"symbol_type_name:{symbol_type_name}, symbol_legend_node.symbol.dump: {symbol.dump()}")
-                        symbol_layers = symbol.symbolLayers()
-                        print(f"symbol_legend_node.symbol.symbolLayers: {symbol_layers}")
-                        # print(f"symbol.symbolTypeToString:{symbol.symbolTypeToString(symbol)}")
-                        filtered_symbol_layers = []
-                        for symbol_layer in symbol_layers:
-                            # print(f"symbol_layer type: {type(symbol_layer)}")
-                            # print(f"symbol_layer.class: {symbol_layer.__class__()}")
-                            # print(f"symbol_layer.layerType(): {symbol_layer.layerType()}")
-                            # print(f"symbol_layer.id: {symbol_layer.id()}")
-                            # print(f"symbol_layer.flags: {symbol_layer.flags()}")
-                            # print(f"symbol_layer.properties: {symbol_layer.properties()}")
-                            if symbol_layer.layerType() != "FontMarker":
-                                filtered_symbol_layers.append(symbol_layer.clone())
-                        filtered_marker_symbol = QgsMarkerSymbol(filtered_symbol_layers)
-                        check_symbol_layers = filtered_marker_symbol.symbolLayers()
-                        # print("000")
-                        # for check_symbol_layer in check_symbol_layers:
-                        #     print(f"check_symbol_layer.layerType(): {check_symbol_layer.layerType()}")
-                        # print("001")
-                        # legend_symbol_item.setSymbol(filtered_marker_symbol)
-                        # print("111")
-                        # symbol_legend_node = QgsSymbolLegendNode(tr, legend_symbol_item)
-                        # print("222")
-                        # symbol_legend_node_list.append(symbol_legend_node)
-                        # print("333")
-                    # QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
-                        # print(f"symbol_legend_node.patchShape: {symbol_legend_node.patchShape()}")
-                        # print(f"symbol_legend_node.customSymbol: {symbol_legend_node.customSymbol()}")
-                        # print(f"symbol_legend_node.iconSize: {symbol_legend_node.iconSize()}")
-                        # print(f"symbol_legend_node.textOnSymbolLabel: {symbol_legend_node.textOnSymbolLabel()}")
-                        # print(f"symbol_legend_node.textOnSymbolTextFormat: {symbol_legend_node.textOnSymbolTextFormat()}")
-                        # print(f"symbol_legend_node.isScaleOK: {symbol_legend_node.isScaleOK(1)}")
-                        # print(f"symbol_legend_node.flags: {symbol_legend_node.flags()}")
-                        # print(f"symbol_legend_node.invalidateMapBasedData: {symbol_legend_node.invalidateMapBasedData()}")
-                        #     # if tr.name() == layer_name:
-                        #     #     tr.setCustomProperty("legend/title-label", "new name in legend")
-                # else:
-                #     symbol_legend_node_list = [QgsSymbolLegendNode(tr, legend_symbol_item) for legend_symbol_item in legend_symbol_items]
-                #     QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
+            if layer_custom_type == "point":
+                # custom symbol
+                symbol_legend_node_list = []
+                filtered_symbol_layers = []
+                for legend_symbol_item in legend_symbol_items:
+                    symbol: QgsMarkerSymbol = legend_symbol_item.symbol()
+                    symbol_type_name = symbol.symbolTypeToString(symbol.type())
+                    # symbol = symbol_legend_node.symbol()
+                    print(f"symbol_type_name:{symbol_type_name}, symbol_legend_node.symbol.dump: {symbol.dump()}")
+                    symbol_layers = symbol.symbolLayers()
+                    print(f"symbol_legend_node.symbol.symbolLayers: {symbol_layers}")
+                    # print(f"symbol.symbolTypeToString:{symbol.symbolTypeToString(symbol)}")
+                    # filtered_symbol_layers = []
+                    for symbol_layer in symbol_layers:
+                        # print(f"symbol_layer type: {type(symbol_layer)}")
+                        # print(f"symbol_layer.class: {symbol_layer.__class__()}")
+                        # print(f"symbol_layer.layerType(): {symbol_layer.layerType()}")
+                        # print(f"symbol_layer.id: {symbol_layer.id()}")
+                        # print(f"symbol_layer.flags: {symbol_layer.flags()}")
+                        # print(f"symbol_layer.properties: {symbol_layer.properties()}")
+                        if symbol_layer.layerType() != "FontMarker":
+                            filtered_symbol_layers.append(symbol_layer.clone())
+                filtered_marker_symbol = QgsMarkerSymbol(filtered_symbol_layers)
+                legend_keys = layer_renderer.legendKeys()
+                # print(f"legendKeys:{legend_keys}, type: {type(legend_keys)}")
+                # print(f"layer_renderer.legendSymbolItemsCheckable:{layer_renderer.legendSymbolItemsCheckable()}")
+                for legend_key in legend_keys:
+                    layer_renderer.setLegendSymbolItem(legend_key, filtered_marker_symbol)
+                    # print(
+                    #     f"layer_renderer.legendSymbolItemChecked: {legend_key} ---> {layer_renderer.legendSymbolItemChecked(legend_key)}")
 
 
+                # check_symbol_layers = filtered_marker_symbol.symbolLayers()
+                    # print("000")
+                    # for check_symbol_layer in check_symbol_layers:
+                    #     print(f"check_symbol_layer.layerType(): {check_symbol_layer.layerType()}")
+                    # print("001")
+                    # legend_symbol_item.setSymbol(filtered_marker_symbol)
+                    # print("111")
+                    # symbol_legend_node = QgsSymbolLegendNode(tr, legend_symbol_item)
+                    # print("222")
+                    # symbol_legend_node_list.append(symbol_legend_node)
+                    # print("333")
+                # QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
+                    # print(f"symbol_legend_node.patchShape: {symbol_legend_node.patchShape()}")
+                    # print(f"symbol_legend_node.customSymbol: {symbol_legend_node.customSymbol()}")
+                    # print(f"symbol_legend_node.iconSize: {symbol_legend_node.iconSize()}")
+                    # print(f"symbol_legend_node.textOnSymbolLabel: {symbol_legend_node.textOnSymbolLabel()}")
+                    # print(f"symbol_legend_node.textOnSymbolTextFormat: {symbol_legend_node.textOnSymbolTextFormat()}")
+                    # print(f"symbol_legend_node.isScaleOK: {symbol_legend_node.isScaleOK(1)}")
+                    # print(f"symbol_legend_node.flags: {symbol_legend_node.flags()}")
+                    # print(f"symbol_legend_node.invalidateMapBasedData: {symbol_legend_node.invalidateMapBasedData()}")
+                    #     # if tr.name() == layer_name:
+                    #     #     tr.setCustomProperty("legend/title-label", "new name in legend")
+            # else:
+            #     symbol_legend_node_list = [QgsSymbolLegendNode(tr, legend_symbol_item) for legend_symbol_item in legend_symbol_items]
+            #     QgsMapLayerLegendUtils.applyLayerNodeProperties(tr, symbol_legend_node_list)
 
 
-            # QgsLegendRenderer.setNodeLegendStyle(layer_tree_layer, QgsComposerLegendStyle.Group)
-            # layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
-            # node_order = QgsMapLayerLegendUtils.legendNodeOrder(layer_tree_layer)
-            # print(f"{layer.name()} node_order: {node_order}")
-            # node_symbol_size = QgsMapLayerLegendUtils.legendNodeSymbolSize(layer_tree_layer,0)
-            # print(f"node_symbol_size: {node_symbol_size}")
-            # custom_symbol = QgsMapLayerLegendUtils.legendNodeCustomSymbol(layer_tree_layer, 0)
-            # print(f"type: {type(custom_symbol)}, custom_symbol: {custom_symbol}")
-            # if layer_tree_layer:
-            #     for i in range(len(layer_tree_layer.children())):
-            #         # Customize each legend item if needed
-            #         pass
+
+
+        # QgsLegendRenderer.setNodeLegendStyle(layer_tree_layer, QgsComposerLegendStyle.Group)
+        # layer_tree_layer = legend_model.rootGroup().findLayer(layer.id())
+        # node_order = QgsMapLayerLegendUtils.legendNodeOrder(layer_tree_layer)
+        # print(f"{layer.name()} node_order: {node_order}")
+        # node_symbol_size = QgsMapLayerLegendUtils.legendNodeSymbolSize(layer_tree_layer,0)
+        # print(f"node_symbol_size: {node_symbol_size}")
+        # custom_symbol = QgsMapLayerLegendUtils.legendNodeCustomSymbol(layer_tree_layer, 0)
+        # print(f"type: {type(custom_symbol)}, custom_symbol: {custom_symbol}")
+        # if layer_tree_layer:
+        #     for i in range(len(layer_tree_layer.children())):
+        #         # Customize each legend item if needed
+        #         pass
 
 def add_print_layout(project, canvas) -> QgsPrintLayout:
     layout = QgsPrintLayout(project)
