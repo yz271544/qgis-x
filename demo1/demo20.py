@@ -3,11 +3,14 @@ import sys, os
 import math
 import time
 
-from contourpy.util.data import simple
-from qgis._core import QgsLineString, QgsPoint
+
 from qgis.gui import QgsMapCanvas
 from qgis.core import (
     QgsLayoutPoint,
+    QgsMarkerLineSymbolLayer,
+    QgsSimpleMarkerSymbolLayer,
+    QgsLineString,
+    QgsPoint,
     Qgis,
     QgsApplication,
     QgsProject,
@@ -70,6 +73,8 @@ from qgis.PyQt import QtCore
 from qgis.PyQt import QtGui
 # from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt import QtXml
+# from PyQt5.QtGui import QColor, QPolygonF
+# from PyQt5.QtCore import QPointF
 from typing import Optional
 
 
@@ -678,7 +683,9 @@ def add_print_layout(project, canvas) -> QgsPrintLayout:
     add_scale_bar(layout, map_item)
 
     # Add arrow
-    add_arrow_to_layout(layout)
+    points = [QgsLayoutPoint(10, 10, QgsUnitTypes.LayoutMillimeters),
+              QgsLayoutPoint(50, 50, QgsUnitTypes.LayoutMillimeters)]
+    add_arrow_to_layout(layout, points)
 
     project.layoutManager().addLayout(layout)
 
@@ -750,69 +757,44 @@ def add_scale_bar(layout, map_item: QgsLayoutItemMap):
     layout.addLayoutItem(scale_bar)
 
 
-def add_arrow_to_layout(layout):
-    # Create an arrow item
+def add_arrow_to_layout(layout, points, color=QtGui.QColor("black"), width=0.5):
+    """
+    Adds an arrow polyline to a QGIS layout.
 
-    simple_line_symbol_layer = QgsSimpleLineSymbolLayer()
-    simple_line_symbol_layer.setColor(QtGui.QColor(0, 0, 255))  # Blue color
-    simple_line_symbol_layer.setWidth(1.0)
-    simple_line_symbol_layer.setPenStyle(QtCore.Qt.SolidLine)
-    simple_line_symbol_layer.setEnabled(True)
-    simple_line_symbol_layer.setWidth(1.0)
-    simple_line_symbol_layer.setWidthUnit(QgsUnitTypes.RenderMillimeters)
-    main_line_symbol = QgsLineSymbol([simple_line_symbol_layer])
-    main_line_symbol.setOpacity(1.0)
-    main_line_symbol.setColor(QtGui.QColor(0, 0, 255))  # Blue color
-    main_line_symbol.setWidth(1.0)
+    :param layout: QgsLayout - The layout to which the arrow will be added.
+    :param points: List of QgsPointXY - The points defining the polyline (e.g., [QgsPointXY(x1, y1), QgsPointXY(x2, y2)]).
+    :param color: QColor - The color of the arrow line (default is black).
+    :param width: float - The width of the arrow line in millimeters (default is 0.5mm).
+    """
+    # Convert points to QPolygonF
+    polygon = QtGui.QPolygonF([QtCore.QPointF(point.x(), point.y()) for point in points])
 
+    # Create a new polyline item
+    polyline_item = QgsLayoutItemPolyline(polygon, layout)
 
-    polyline_item = QgsLayoutItemPolyline(layout)
-    polyline_item.setStartMarker(QgsLayoutItemPolyline.MarkerMode.NoMarker)
-    polyline_item.setEndMarker(QgsLayoutItemPolyline.MarkerMode.ArrowHead)
-    polyline_item.setArrowHeadFillColor(QtGui.QColor(0, 0, 255))  # Blue color
-    polyline_item.setFrameStrokeColor(QtGui.QColor(0, 0, 255))  # Blue color
-    polyline_item.setSymbol(main_line_symbol)
-    #
-    # # Set the arrow properties using QgsLineSymbol
-    # line_symbol = QgsLineSymbol()
-    # line_symbol.setColor(QtGui.QColor(0, 0, 255))  # Blue color
-    # line_symbol.setWidth(1.0)
-    # arrow_item.setSymbol(line_symbol)
-    #
-    # Position the arrow
-    polyline_item.attemptSetSceneRect(QtCore.QRectF(10, 10, 100, 100))  # Adjust position and size as needed
-    #
-    # # Add the arrow to the layout
-    # layout.addLayoutItem(arrow_item)
-    #
-    # # 创建箭头符号层
-    # arrow_layer = QgsArrowSymbolLayer.create({
-    #     "width": 5,
-    #     "color": QtGui.QColor(0, 0, 255),
-    #     "head_length": "3",
-    #     "head_thickness": "2"
-    # })
-    # # 创建简单线符号层（用于线条主体部分）
-    # line_layer = QgsSimpleLineSymbolLayer.create({
-    #     "width": 3,
-    #     "color": QtGui.QColor(0, 0, 255)
-    # })
-    #
-    # # 创建复合符号，将线符号层和箭头符号层组合起来
-    # symbol = QgsSymbol()
-    # symbol.changeSymbolLayer(0, line_layer)
-    # symbol.appendSymbolLayer(arrow_layer)
-    #
-    # # 设置线的符号（包含箭头样式）
-    # polyline_item.setSymbol(symbol)
+    # Create a line symbol
+    line_symbol = QgsLineSymbol.createSimple({'color': color.name(), 'width': str(width)})
 
-    # 设置单位类型等相关属性（这里以毫米为例）
-    # polyline_item.unit(QgsUnitTypes.LayoutMillimeters)
+    # Add an arrow head using QgsMarkerLineSymbolLayer
+    arrow_marker = QgsMarkerLineSymbolLayer()
+    arrow_marker.setPlacement(QgsMarkerLineSymbolLayer.LastVertex)
 
-    # 将绘制箭头的对象添加到布局中
-    layout.addLayoutItem(polyline_item)
-    # 触发布局重绘
-    layout.refresh()
+    # Create a simple marker to use as the arrowhead
+    arrow_head = QgsSimpleMarkerSymbolLayer()
+    arrow_head.setShape(QgsSimpleMarkerSymbolLayer.Triangle)
+    arrow_head.setColor(color)
+    arrow_head.setSize(width * 2)  # Adjust size as needed for visibility
+
+    # Add the arrowhead as a sub-symbol of the marker line
+    arrow_marker.subSymbol().changeSymbolLayer(0, arrow_head)
+    line_symbol.appendSymbolLayer(arrow_marker)
+
+    # Apply the line symbol to the polyline item
+    polyline_item.setSymbol(line_symbol)
+
+    # Add the polyline item to the layout
+    layout.addItem(polyline_item)
+
 
 def load_qpt_template(project, qpt_file_path):
     doc = QtXml.QDomDocument()
@@ -994,16 +976,16 @@ if __name__ == '__main__':
     layout = add_print_layout(project, canvas)
 
     # Save project
-    project.write(f"{GEOJSON_PREFIX}/demo19.qgz")
+    project.write(f"{GEOJSON_PREFIX}/demo20.qgz")
 
     # Export layout to image
-    output_image_path = f"{GEOJSON_PREFIX}/demo19.png"
+    output_image_path = f"{GEOJSON_PREFIX}/demo20.png"
     export_layout_to_image(layout, output_image_path)
 
-    output_pdf_path = f"{GEOJSON_PREFIX}/demo19.pdf"
+    output_pdf_path = f"{GEOJSON_PREFIX}/demo20.pdf"
     export_layout_to_pdf(layout, output_pdf_path)
 
-    output_svg_path = f"{GEOJSON_PREFIX}/demo19.svg"
+    output_svg_path = f"{GEOJSON_PREFIX}/demo20.svg"
     export_layout_to_svg(layout, output_svg_path)
 
     # Exit QGIS application
