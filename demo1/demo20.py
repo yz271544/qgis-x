@@ -777,7 +777,7 @@ def add_arrow_to_layout(layout, points, color=QtGui.QColor("black"), width=0.5):
 
     # Add an arrow head using QgsMarkerLineSymbolLayer
     arrow_marker = QgsMarkerLineSymbolLayer()
-    arrow_marker.setPlacement(QgsMarkerLineSymbolLayer.LastVertex)
+    arrow_marker.setPlacements(QgsMarkerLineSymbolLayer.LastVertex)  # Ensures marker appears at the end of the line
 
     # Create a simple marker to use as the arrowhead
     arrow_head = QgsSimpleMarkerSymbolLayer()
@@ -794,7 +794,6 @@ def add_arrow_to_layout(layout, points, color=QtGui.QColor("black"), width=0.5):
 
     # Add the polyline item to the layout
     layout.addItem(polyline_item)
-
 
 def load_qpt_template(project, qpt_file_path):
     doc = QtXml.QDomDocument()
